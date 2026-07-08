@@ -55,5 +55,9 @@
 	</array>
 	<key>UIViewControllerBasedStatusBarAppearance</key>
 	<false/>
+	<key>NSCameraUsageDescription</key>
+	<string>This app requires camera access to detect obstacles and identify objects in your surroundings.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>This app requires microphone access to listen for voice commands and control the virtual assistant.</string>
 </dict>
 </plist>

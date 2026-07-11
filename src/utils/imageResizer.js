@@ -1,40 +1,51 @@
 export function resize(srcPixels, srcWidth, srcHeight, dstWidth, dstHeight) {
   'worklet';
-  
-  const dstPixels = new Float32Array(dstWidth * dstHeight * 3);
-  const scale = Math.min(dstWidth / srcWidth, dstHeight / srcHeight);
-  
-  const newW = Math.floor(srcWidth * scale);
-  const newH = Math.floor(srcHeight * scale);
 
-  const padX = Math.floor((dstWidth - newW) / 2);
-  const padY = Math.floor((dstHeight - newH) / 2);
+  const dstPixels = new Float32Array(dstWidth * dstHeight * 3);
+
+  const scale = Math.min(dstWidth / srcWidth, dstHeight / srcHeight);
+
+  const newW = (srcWidth * scale) | 0;
+  const newH = (srcHeight * scale) | 0;
+
+  const padX = ((dstWidth - newW) / 2) | 0;
+  const padY = ((dstHeight - newH) / 2) | 0;
 
   const xRatio = srcWidth / newW;
   const yRatio = srcHeight / newH;
 
   const channelSize = dstWidth * dstHeight;
+  const channelSize2 = channelSize << 1;
+
+  const inv255 = 1.0 / 255.0;
+
+  // Lookup tables
+  const xMap = new Int32Array(newW);
+  const yMap = new Int32Array(newH);
+
+  for (let x = 0; x < newW; x++) {
+    xMap[x] = (x * xRatio) | 0;
+  }
 
   for (let y = 0; y < newH; y++) {
-    const srcY = Math.floor(y * yRatio);
-    const dstY = y + padY; 
+    yMap[y] = ((y * yRatio) | 0) * srcWidth;
+  }
+
+  for (let y = 0; y < newH; y++) {
+
+    const srcRow = yMap[y];
+    const dstRow = (y + padY) * dstWidth + padX;
 
     for (let x = 0; x < newW; x++) {
-      const srcX = Math.floor(x * xRatio);
-      const dstX = x + padX; 
 
-      const srcIdx = (srcY * srcWidth + srcX) * 4;
+      const srcIdx = (srcRow + xMap[x]) << 2;
+      const dstIdx = dstRow + x;
 
-      const pixelIdx = dstY * dstWidth + dstX;
-      const rIdx = pixelIdx;
-      const gIdx = pixelIdx + channelSize;
-      const bIdx = pixelIdx + (channelSize * 2);
-
-      dstPixels[rIdx] = srcPixels[srcIdx] / 255.0;
-      dstPixels[gIdx] = srcPixels[srcIdx + 1] / 255.0;
-      dstPixels[bIdx] = srcPixels[srcIdx + 2] / 255.0;
+      dstPixels[dstIdx] = srcPixels[srcIdx] * inv255;
+      dstPixels[dstIdx + channelSize] = srcPixels[srcIdx + 1] * inv255;
+      dstPixels[dstIdx + channelSize2] = srcPixels[srcIdx + 2] * inv255;
     }
   }
-  
+
   return dstPixels;
 }

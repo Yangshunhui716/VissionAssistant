@@ -15,7 +15,7 @@ import { resize } from './utils/imageResizer';
 const App = () => {
   const camera = useCameraDevice('back');
   const { hasPermission, requestPermission } = useCameraPermission();
-  const yoloModel =  useTensorflowModel(require('./assets/models/yolo11n.tflite'), []);
+  const yoloModel =  useTensorflowModel(require('./assets/models/yolo11n320.tflite'), []);
 
   useEffect(() => {
     if (!hasPermission) {
@@ -45,7 +45,7 @@ const App = () => {
           const t0 = Date.now();
           const frameData = new Uint8Array(frame.getPixelBuffer());
           const t1 = Date.now();
-          const resizedData = resize(frameData, frame.width, frame.height, 640, 640);
+          const resizedData = resize(frameData, frame.width, frame.height, 320, 320);
           const t2 = Date.now();
           const outputs = yoloModel.model.runSync([resizedData.buffer]);
           const t3 = Date.now();

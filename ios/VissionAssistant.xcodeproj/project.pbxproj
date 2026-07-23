@@ -11,6 +11,19 @@
 		13B07FBF1A68108700A75B9A /* Images.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 13B07FB51A68108700A75B9A /* Images.xcassets */; };
 		761780ED2CA45674006654EE /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 761780EC2CA45674006654EE /* AppDelegate.swift */; };
 		81AB9BB82411601600AC10FF /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 81AB9BB72411601600AC10FF /* LaunchScreen.storyboard */; };
+		41FC217F2D90430CA2D63B20 /* final.mdl in Resources */ = {isa = PBXBuildFile; fileRef = 1A53A522A3DC4DFC9CF06CA2 /* final.mdl */; };
+		512626B0FFCC41B48DA6049A /* mfcc.conf in Resources */ = {isa = PBXBuildFile; fileRef = B378D2C178DE4434A96FE255 /* mfcc.conf */; };
+		E22EBC28EEB346C491C0DC76 /* model.conf in Resources */ = {isa = PBXBuildFile; fileRef = 8CE8261DA2CC4942B9C18BB4 /* model.conf */; };
+		A8C0886B29304BDDB6995FE3 /* HCLG.fst in Resources */ = {isa = PBXBuildFile; fileRef = F2B78E2A83F54CBC9747D0F5 /* HCLG.fst */; };
+		F0476363D9524F6CB3F0E718 /* word_boundary.int in Resources */ = {isa = PBXBuildFile; fileRef = ABD6F84D58D24E51A1F67B7F /* word_boundary.int */; };
+		95C4FDDB711244F89B9DAE17 /* words.txt in Resources */ = {isa = PBXBuildFile; fileRef = 186235C9770F40879C777D23 /* words.txt */; };
+		086FE70630E24C9D850FA56C /* final.dubm in Resources */ = {isa = PBXBuildFile; fileRef = F669902A2BD545348974B2D3 /* final.dubm */; };
+		55CA2F399ADA4F0299D1E237 /* final.ie in Resources */ = {isa = PBXBuildFile; fileRef = 8A16D3363B4C488794FC8BAD /* final.ie */; };
+		C281DD7CD56A464DB0DD0E0D /* final.mat in Resources */ = {isa = PBXBuildFile; fileRef = ADA2C12F8C3349AAA44812FE /* final.mat */; };
+		1C29979653F541FBA7ED6798 /* global_cmvn.stats in Resources */ = {isa = PBXBuildFile; fileRef = 6301F45BF6404873A4C045D7 /* global_cmvn.stats */; };
+		68F143722CB9404C9C365BA0 /* online_cmvn.conf in Resources */ = {isa = PBXBuildFile; fileRef = E19F525A0BBB47CE847F3752 /* online_cmvn.conf */; };
+		23FB9220EA574BF186885EEE /* splice.conf in Resources */ = {isa = PBXBuildFile; fileRef = C03D8B2ED0C24638AFEEC3BC /* splice.conf */; };
+		20CDF165B88D4894B04FF83C /* README in Resources */ = {isa = PBXBuildFile; fileRef = AC479919E3CB430A8359FA5E /* README */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -24,6 +37,19 @@
 		761780EC2CA45674006654EE /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = AppDelegate.swift; path = VissionAssistant/AppDelegate.swift; sourceTree = "<group>"; };
 		81AB9BB72411601600AC10FF /* LaunchScreen.storyboard */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = file.storyboard; name = LaunchScreen.storyboard; path = VissionAssistant/LaunchScreen.storyboard; sourceTree = "<group>"; };
 		ED297162215061F000B7C4FE /* JavaScriptCore.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = JavaScriptCore.framework; path = System/Library/Frameworks/JavaScriptCore.framework; sourceTree = SDKROOT; };
+		1A53A522A3DC4DFC9CF06CA2 /* final.mdl */ = {isa = PBXFileReference; name = "final.mdl"; path = "../assets/model-vn-vn/am/final.mdl"; sourceTree = "<group>"; fileEncoding = undefined; lastKnownFileType = unknown; explicitFileType = undefined; includeInIndex = 0; };
+		B378D2C178DE4434A96FE255 /* mfcc.conf */ = {isa = PBXFileReference; name = "mfcc.conf"; path = "../assets/model-vn-vn/conf/mfcc.conf"; sourceTree = "<group>"; fileEncoding = undefined; lastKnownFileType = unknown; explicitFileType = undefined; includeInIndex = 0; };
+		8CE8261DA2CC4942B9C18BB4 /* model.conf */ = {isa = PBXFileReference; name = "model.conf"; path = "../assets/model-vn-vn/conf/model.conf"; sourceTree = "<group>"; fileEncoding = undefined; lastKnownFileType = unknown; explicitFileType = undefined; includeInIndex = 0; };
+		F2B78E2A83F54CBC9747D0F5 /* HCLG.fst */ = {isa = PBXFileReference; name = "HCLG.fst"; path = "../assets/model-vn-vn/graph/HCLG.fst"; sourceTree = "<group>"; fileEncoding = undefined; lastKnownFileType = unknown; explicitFileType = undefined; includeInIndex = 0; };
+		ABD6F84D58D24E51A1F67B7F /* word_boundary.int */ = {isa = PBXFileReference; name = "word_boundary.int"; path = "../assets/model-vn-vn/graph/phones/word_boundary.int"; sourceTree = "<group>"; fileEncoding = undefined; lastKnownFileType = unknown; explicitFileType = undefined; includeInIndex = 0; };
+		186235C9770F40879C777D23 /* words.txt */ = {isa = PBXFileReference; name = "words.txt"; path = "../assets/model-vn-vn/graph/words.txt"; sourceTree = "<group>"; fileEncoding = undefined; lastKnownFileType = unknown; explicitFileType = undefined; includeInIndex = 0; };
+		F669902A2BD545348974B2D3 /* final.dubm */ = {isa = PBXFileReference; name = "final.dubm"; path = "../assets/model-vn-vn/ivector/final.dubm"; sourceTree = "<group>"; fileEncoding = undefined; lastKnownFileType = unknown; explicitFileType = undefined; includeInIndex = 0; };
+		8A16D3363B4C488794FC8BAD /* final.ie */ = {isa = PBXFileReference; name = "final.ie"; path = "../assets/model-vn-vn/ivector/final.ie"; sourceTree = "<group>"; fileEncoding = undefined; lastKnownFileType = unknown; explicitFileType = undefined; includeInIndex = 0; };
+		ADA2C12F8C3349AAA44812FE /* final.mat */ = {isa = PBXFileReference; name = "final.mat"; path = "../assets/model-vn-vn/ivector/final.mat"; sourceTree = "<group>"; fileEncoding = undefined; lastKnownFileType = unknown; explicitFileType = undefined; includeInIndex = 0; };
+		6301F45BF6404873A4C045D7 /* global_cmvn.stats */ = {isa = PBXFileReference; name = "global_cmvn.stats"; path = "../assets/model-vn-vn/ivector/global_cmvn.stats"; sourceTree = "<group>"; fileEncoding = undefined; lastKnownFileType = unknown; explicitFileType = undefined; includeInIndex = 0; };
+		E19F525A0BBB47CE847F3752 /* online_cmvn.conf */ = {isa = PBXFileReference; name = "online_cmvn.conf"; path = "../assets/model-vn-vn/ivector/online_cmvn.conf"; sourceTree = "<group>"; fileEncoding = undefined; lastKnownFileType = unknown; explicitFileType = undefined; includeInIndex = 0; };
+		C03D8B2ED0C24638AFEEC3BC /* splice.conf */ = {isa = PBXFileReference; name = "splice.conf"; path = "../assets/model-vn-vn/ivector/splice.conf"; sourceTree = "<group>"; fileEncoding = undefined; lastKnownFileType = unknown; explicitFileType = undefined; includeInIndex = 0; };
+		AC479919E3CB430A8359FA5E /* README */ = {isa = PBXFileReference; name = "README"; path = "../assets/model-vn-vn/README"; sourceTree = "<group>"; fileEncoding = undefined; lastKnownFileType = unknown; explicitFileType = undefined; includeInIndex = 0; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -74,6 +100,7 @@
 				83CBBA001A601CBA00E9B192 /* Products */,
 				2D16E6871FA4F8E400B85C8A /* Frameworks */,
 				BBD78D7AC51CEA395F1C20DB /* Pods */,
+				E28D901A7AFC4B2CB39FB002 /* Resources */,
 			);
 			indentWidth = 2;
 			sourceTree = "<group>";
@@ -96,6 +123,27 @@
 			);
 			path = Pods;
 			sourceTree = "<group>";
+		};
+		E28D901A7AFC4B2CB39FB002 /* Resources */ = {
+			isa = "PBXGroup";
+			children = (
+				1A53A522A3DC4DFC9CF06CA2 /* final.mdl */,
+				B378D2C178DE4434A96FE255 /* mfcc.conf */,
+				8CE8261DA2CC4942B9C18BB4 /* model.conf */,
+				F2B78E2A83F54CBC9747D0F5 /* HCLG.fst */,
+				ABD6F84D58D24E51A1F67B7F /* word_boundary.int */,
+				186235C9770F40879C777D23 /* words.txt */,
+				F669902A2BD545348974B2D3 /* final.dubm */,
+				8A16D3363B4C488794FC8BAD /* final.ie */,
+				ADA2C12F8C3349AAA44812FE /* final.mat */,
+				6301F45BF6404873A4C045D7 /* global_cmvn.stats */,
+				E19F525A0BBB47CE847F3752 /* online_cmvn.conf */,
+				C03D8B2ED0C24638AFEEC3BC /* splice.conf */,
+				AC479919E3CB430A8359FA5E /* README */,
+			);
+			name = Resources;
+			sourceTree = "<group>";
+			path = "";
 		};
 /* End PBXGroup section */
 
@@ -159,6 +207,19 @@
 			files = (
 				81AB9BB82411601600AC10FF /* LaunchScreen.storyboard in Resources */,
 				13B07FBF1A68108700A75B9A /* Images.xcassets in Resources */,
+				41FC217F2D90430CA2D63B20 /* final.mdl in Resources */,
+				512626B0FFCC41B48DA6049A /* mfcc.conf in Resources */,
+				E22EBC28EEB346C491C0DC76 /* model.conf in Resources */,
+				A8C0886B29304BDDB6995FE3 /* HCLG.fst in Resources */,
+				F0476363D9524F6CB3F0E718 /* word_boundary.int in Resources */,
+				95C4FDDB711244F89B9DAE17 /* words.txt in Resources */,
+				086FE70630E24C9D850FA56C /* final.dubm in Resources */,
+				55CA2F399ADA4F0299D1E237 /* final.ie in Resources */,
+				C281DD7CD56A464DB0DD0E0D /* final.mat in Resources */,
+				1C29979653F541FBA7ED6798 /* global_cmvn.stats in Resources */,
+				68F143722CB9404C9C365BA0 /* online_cmvn.conf in Resources */,
+				23FB9220EA574BF186885EEE /* splice.conf in Resources */,
+				20CDF165B88D4894B04FF83C /* README in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

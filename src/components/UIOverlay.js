@@ -10,7 +10,8 @@ export const UIOverlay = ({ fps, objectList, detectedObj, appState, transcript }
       
       <View style={styles.alertBox}>
         <Text style={styles.alertTitle}>PHÁT HIỆN: {detectedObj.name.toUpperCase()}</Text>
-        <Text style={styles.alertDepth}>Chỉ số: {detectedObj.depth.toFixed(2)}</Text>
+        <Text style={styles.alertDepth}>Chỉ số: {detectedObj.depth}</Text>
+        <Text style={styles.alertDepth}>Trạng thái: {detectedObj.motion}</Text>
       </View>
 
       <View style={styles.debugList}>

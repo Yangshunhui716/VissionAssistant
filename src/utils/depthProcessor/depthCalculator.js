@@ -1,30 +1,35 @@
 export const getDepthFromMidas = (yoloBox, depthMap) => {
   'worklet';
 
-  const centerX = yoloBox.x + (yoloBox.width / 2);
-  const centerY = yoloBox.y + (yoloBox.height / 2);
+  const midasX = Math.max(0, Math.floor((yoloBox.x / 320) * 256));
+  const midasY = Math.max(0, Math.floor((yoloBox.y / 320) * 256));
+  const midasW = Math.min(256 - midasX, Math.floor((yoloBox.width / 320) * 256));
+  const midasH = Math.min(256 - midasY, Math.floor((yoloBox.height / 320) * 256));
 
-  let midasX = Math.floor((centerX / 320) * 256);
-  let midasY = Math.floor((centerY / 320) * 256);
+  const coreX = midasX + Math.floor(midasW * 0.25);
+  const coreY = midasY + Math.floor(midasH * 0.4);
+  const coreW = Math.floor(midasW * 0.5);
+  const coreH = Math.floor(midasH * 0.5);
 
-  midasX = Math.min(Math.max(midasX, 0), 255);
-  midasY = Math.min(Math.max(midasY, 0), 255);
-
-  let totalDepth = 0;
+  let maxRawDepth = 0;
+  let sumDepth = 0;
   let count = 0;
 
-  for (let dy = -1; dy <= 1; dy++) {
-    for (let dx = -1; dx <= 1; dx++) {
-      const px = midasX + dx;
-      const py = midasY + dy;
-
-      if (px >= 0 && px < 256 && py >= 0 && py < 256) {
-        const index = (py * 256) + px;
-        totalDepth += depthMap[index];
+  for (let y = coreY; y < coreY + coreH; y++) {
+    for (let x = coreX; x < coreX + coreW; x++) {
+      if (x >= 0 && x < 256 && y >= 0 && y < 256) {
+        const index = (y * 256) + x;
+        const d = depthMap[index];
+        
+        if (d > maxRawDepth) maxRawDepth = d;
+        sumDepth += d;
         count++;
       }
     }
   }
 
-  return count > 0 ? (totalDepth / count) : 0;
+  const avgDepth = count > 0 ? (sumDepth / count) : 0;
+  const finalRaw = (maxRawDepth * 0.7) + (avgDepth * 0.3);
+
+  return finalRaw;
 };

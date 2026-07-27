@@ -50,9 +50,9 @@ export function resize(srcPixels, srcWidth, srcHeight,
         const srcIdx = srcRowByteOffset + (srcX * bytesPerPixel); 
         const dstIdx = (dstY * dstWidth + dstX) * 3; 
         if (srcIdx >= 0 && (srcIdx + 2) < srcPixels.length) {
-          dstPixels[dstIdx] = srcPixels[srcIdx] * inv255;       // R
-          dstPixels[dstIdx + 1] = srcPixels[srcIdx + 1] * inv255; // G
-          dstPixels[dstIdx + 2] = srcPixels[srcIdx + 2] * inv255; // B
+          dstPixels[dstIdx] = srcPixels[srcIdx] * inv255;
+          dstPixels[dstIdx + 1] = srcPixels[srcIdx + 1] * inv255;
+          dstPixels[dstIdx + 2] = srcPixels[srcIdx + 2] * inv255;
         }
       }
     }

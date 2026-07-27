@@ -1,31 +1,33 @@
-export function analyzeMotion(validObstacles, targetName, cocoLabelsVi) {
+export function analyzeMotion(mostDangerousTarget, cocoLabelsVi) {
   'worklet';
-  
-  if (validObstacles.length === 0 || !targetName) return "Tĩnh";
-  global.motionHistories = global.motionHistories || {};
 
-  validObstacles.forEach(obj => {
-    const name = cocoLabelsVi[obj.labelIdx];
+  if (!mostDangerousTarget) return "Tĩnh";
 
-    if (!global.motionHistories[name]) {
-      global.motionHistories[name] = [];
+  const targetName = cocoLabelsVi[mostDangerousTarget.labelIdx];
+  const currentArea = mostDangerousTarget.width * mostDangerousTarget.height;
+  const cx = mostDangerousTarget.x + mostDangerousTarget.width / 2;
+  const cy = mostDangerousTarget.y + mostDangerousTarget.height / 2;
+
+  global.targetTracker = global.targetTracker || [];
+
+  if (global.targetTracker.length > 0) {
+    const lastFrame = global.targetTracker[global.targetTracker.length - 1];
+    const distance = Math.hypot(cx - lastFrame.cx, cy - lastFrame.cy);
+    if (distance > 50 || lastFrame.name !== targetName) {
+      global.targetTracker = []; 
     }
+  }
 
-    const area = obj.width * obj.height;
-    const cx = obj.x + obj.width / 2;
-    global.motionHistories[name].push({ area, cx });
+  global.targetTracker.push({ name: targetName, area: currentArea, cx, cy });
 
-    if (global.motionHistories[name].length > 5) {
-      global.motionHistories[name].shift();
-    }
-  });
+  if (global.targetTracker.length > 5) {
+    global.targetTracker.shift();
+  }
 
-  const targetHistory = global.motionHistories[targetName];
   let motionState = "Tĩnh";
-
-  if (targetHistory && targetHistory.length >= 3) {
-    const oldestFrame = targetHistory[0];
-    const newestFrame = targetHistory[targetHistory.length - 1];
+  if (global.targetTracker.length >= 3) {
+    const oldestFrame = global.targetTracker[0];
+    const newestFrame = global.targetTracker[global.targetTracker.length - 1];
 
     const areaGrowth = newestFrame.area / oldestFrame.area;
     if (areaGrowth > 1.15) { 

@@ -14,6 +14,8 @@ import { gridWeighting } from '../utils/obstacleAnalyzer/gridWeighting';
 import { analyzeMotion } from '../utils/obstacleAnalyzer/motionTracker';
 
 const aiDelegates = (Platform.OS === 'ios') ? ['core-ml', 'metal'] : ['android-gpu', 'nnapi'];
+const yoloBuffer = new Float32Array(320 * 320 * 3);
+const midasBuffer = new Float32Array(256 * 256 * 3);
 let lastRealDepth = 0;
 let lastRealArea = 0;
 let lastTargetName = '';
@@ -21,9 +23,6 @@ let lastTargetName = '';
 export const useVision = () => {
   const yoloModel = useTensorflowModel(require('../assets/models/yolo11n.tflite'), aiDelegates);
   const midasModel = useTensorflowModel(require('../assets/models/midas.tflite'), aiDelegates);
-
-  const yoloBuffer = new Float32Array(320 * 320 * 3);
-  const midasBuffer = new Float32Array(256 * 256 * 3);
 
   const [fps, setFps] = useState(0);
   const [objectList, setObjectList] = useState([]);
@@ -93,7 +92,7 @@ export const useVision = () => {
             const stableLabels = timeVoting(parsed, global.frameHistory, COCO_LABELS_VI);
             const validObstacles = whitelistFilter(parsed, stableLabels, OBSTACLE_WHITELIST, COCO_LABELS_VI);
             const { mostDangerousTarget, targetName } = gridWeighting(validObstacles, COCO_LABELS_VI);
-            const motionState = analyzeMotion(validObstacles, targetName, COCO_LABELS_VI);
+            const motionState = analyzeMotion(mostDangerousTarget, COCO_LABELS_VI);
 
             if (mostDangerousTarget) {
               const currentArea = mostDangerousTarget.width * mostDangerousTarget.height;
@@ -112,11 +111,27 @@ export const useVision = () => {
                 
                 return isSameName && (objDir === direction);
               }).length;
+
+              const hasSurroundingThreats = validObstacles.some(obj => {
+                const cx = obj.x + (obj.width / 2);
+                let dir = "Trực diện";
+                if (cx < 106) dir = "Bên trái";
+                else if (cx > 213) dir = "Bên phải";
+                
+                const bottomY = obj.y + obj.height;
+                return (dir !== direction) && (bottomY > 160);
+              });
               
-              const quantityText = countInSameDirection > 1 ? `${countInSameDirection} ` : '';
-              const displayAlertName = `${quantityText}${targetName} ${direction}`;
+              let displayAlertName = "";
+              if (hasSurroundingThreats) {
+                displayAlertName = "Chú ý: Có vật cản ở nhiều hướng";
+              } else {
+                const quantityText = countInSameDirection > 1 ? `${countInSameDirection} ` : '';
+                displayAlertName = `${quantityText}${targetName} ${direction}`;
+              }
+              
               const allValidNames = validObstacles.map(obj => COCO_LABELS_VI[obj.labelIdx]);
-              scheduleOnRN(updateList, allValidNames); 
+              scheduleOnRN(updateList, allValidNames);
 
               scheduleOnRN(updateAlert, targetName, displayAlertName, null, motionState, currentArea);
 

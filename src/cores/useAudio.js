@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import AudioRecord from 'react-native-audio-record';
-import * as vosk from 'react-native-vosk'; // CHUẨN NHƯ CODE MẪU
+import * as vosk from 'react-native-vosk';
 import { initWhisper } from 'whisper.rn/index.js';
 import { Buffer } from 'buffer';
 
@@ -19,7 +19,7 @@ export const useAudio = (hasMicPermission) => {
       console.log("[VOSK CHỐT CÂU]:", res); 
       const text = (res || "").toString().toLowerCase();
       
-      if (text.includes('vi sần') || text.includes('vision') || text.includes('xin chào')) {
+      if (text.includes('xin chào')) {
         vosk.stop(); 
         setTimeout(() => {
           startRecordingCommand();

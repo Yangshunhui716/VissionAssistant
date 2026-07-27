@@ -1,0 +1,57 @@
+{
+  "migIndex": 1,
+  "data": [
+    {
+      "path": "assets/model-vn-vn/am/final.mdl",
+      "sha1": "cf9a0b212b6da4cfcc910d072f759e4f2e7ba729"
+    },
+    {
+      "path": "assets/model-vn-vn/conf/mfcc.conf",
+      "sha1": "fc21d8669aa16f8d77b8a417107fa446f3140dc2"
+    },
+    {
+      "path": "assets/model-vn-vn/conf/model.conf",
+      "sha1": "a0a51171c1463dc8bf261139031ddf9b8eb6ad51"
+    },
+    {
+      "path": "assets/model-vn-vn/graph/HCLG.fst",
+      "sha1": "ce0d95eacb10b81fc9e1bdce47c39dcd299068f2"
+    },
+    {
+      "path": "assets/model-vn-vn/graph/phones/word_boundary.int",
+      "sha1": "3d4da775e112ff26bfeba4a1a087fc930d6c78b6"
+    },
+    {
+      "path": "assets/model-vn-vn/graph/words.txt",
+      "sha1": "35743f5f72467bd7b86488de5bcf4c09fe8e6c2e"
+    },
+    {
+      "path": "assets/model-vn-vn/ivector/final.dubm",
+      "sha1": "bdf8964c762ad647a916bdfbe396453f7a4f8e2d"
+    },
+    {
+      "path": "assets/model-vn-vn/ivector/final.ie",
+      "sha1": "8f3789b3a4f817dad3682ac935085598a33461d4"
+    },
+    {
+      "path": "assets/model-vn-vn/ivector/final.mat",
+      "sha1": "8cd29207ce8bd7539073806e8462154014b239ef"
+    },
+    {
+      "path": "assets/model-vn-vn/ivector/global_cmvn.stats",
+      "sha1": "e390e3b34108ebde75cd1949dd65ce72d9c312d2"
+    },
+    {
+      "path": "assets/model-vn-vn/ivector/online_cmvn.conf",
+      "sha1": "9cf2b6941b3110f2678dac465a25099957f60369"
+    },
+    {
+      "path": "assets/model-vn-vn/ivector/splice.conf",
+      "sha1": "14768865d57598ce48119e8657ecafd0a7d62681"
+    },
+    {
+      "path": "assets/model-vn-vn/README",
+      "sha1": "9c6ced20067f39ceb0f159536a9ecc173fce7473"
+    }
+  ]
+}

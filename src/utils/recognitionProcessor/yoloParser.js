@@ -32,10 +32,10 @@ export function parseYoloOutput(rawOutputs) {
     }
 
     if (maxScore > confidenceThreshold) {
-      const cx = output[0 * numAnchors + i];
-      const cy = output[1 * numAnchors + i];
-      const w = output[2 * numAnchors + i];
-      const h = output[3 * numAnchors + i];
+      const cx = output[0 * numAnchors + i] * 320;
+      const cy = output[1 * numAnchors + i] * 320;
+      const w = output[2 * numAnchors + i] * 320;
+      const h = output[3 * numAnchors + i] * 320;
 
       detections.push({
         labelIdx: classIdx,

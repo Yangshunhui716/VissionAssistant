@@ -1,4 +1,4 @@
-export const getDepthFromMidas = (yoloBox, depthMap) => {
+export function getDepthFromMidas(yoloBox, depthMap) {
   'worklet';
 
   const midasX = Math.max(0, Math.floor((yoloBox.x / 320) * 256));
@@ -32,4 +32,11 @@ export const getDepthFromMidas = (yoloBox, depthMap) => {
   const finalRaw = (maxRawDepth * 0.7) + (avgDepth * 0.3);
 
   return finalRaw;
+};
+
+export function translateDepthToText(rawVal) {
+  if (rawVal <= 0) return "Không rõ";
+  if (rawVal > 150) return "Rất gần!";
+  if (rawVal > 100) return "Gần";
+  return "Xa";
 };

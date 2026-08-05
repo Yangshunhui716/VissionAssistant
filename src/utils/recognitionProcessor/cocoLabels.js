@@ -23,6 +23,43 @@ export const COCO_LABELS_VI = [
 ];
 
 export const OBSTACLE_WHITELIST = [
-  'người', 'xe đạp', 'ô tô', 'xe máy', 'xe buýt', 'xe tải', 'trụ cứu hỏa', 'băng ghế dài', 'cột thu phí đỗ xe',
+  'người', 'xe đạp', 'ô tô', 'xe máy', 'xe buýt', 'xe tải',
+  'trụ cứu hỏa', 'biển báo dừng', 'cột thu phí đỗ xe', 'băng ghế dài', 'cây dù',
+  'con chó', 'con bò', 
   'cái ghế', 'ghế sofa', 'chậu cây', 'cái giường', 'bàn ăn', 'bồn cầu', 'tivi', 'tủ lạnh', 'lò nướng'
 ];
+
+export const ALIAS_MAP = {
+  "ly": "cái cốc",
+  "tách": "cái cốc",
+  "chén": "cái bát",
+  "muỗng": "cái thìa",
+  "trái banh": "quả bóng",
+  "cái ô": "cây dù",
+  "xe gắn máy": "xe máy",
+  "xe honda": "xe máy",
+  "xe hơi": "ô tô",
+  "bốn bánh": "ô tô"
+};
+
+const COMMAND_WORDS = [
+  "xin chào", "trợ lý", "ơi",
+  "tìm", "kiếm", "quét", "nhận diện", "đâu", "có gì", "phía trước", 
+  "cái", "cho", "tôi", "tui", "giúp", "mình", "nhé", "nha", "đi", "chiếc", "con", "quả", "kiểm", "tra", "túi"
+];
+
+const SAFE_WORDS_FROM_WORDS_TXT = [
+  "xin", "chào", "trợ", "lý", "ơi", "tìm", "kiếm", "quét", "nhận", "diện", "đâu", "có", "gì", "phía", "trước",
+  "cái", "cho", "tôi", "tui", "giúp", "mình", "nhé", "nha", "đi", "chiếc", "con", "quả", "kiểm", "tra", "túi",
+  "người", "xe", "đạp", "ô", "tô", "máy", "bay", "buýt", "tàu", "hỏa", "tải", "thuyền", "đèn", "giao", "thông",
+  "trụ", "cứu", "biển", "báo", "dừng", "cột", "thu", "phí", "đỗ", "băng", "ghế", "dài", "chim", "mèo", "chó", "ngựa", "cừu", "bò",
+  "voi", "gấu", "vằn", "hươu", "cao", "cổ", "ba", "lô", "cây", "dù", "xách", "cà", "vạt", "vali", "đĩa", "ném",
+  "ván", "trượt", "tuyết", "đôi", "tấm", "bóng", "diều", "gậy", "chày", "găng", "tay", "lướt", "sóng",
+  "vợt", "tennis", "chai", "nước", "ly", "thủy", "tinh", "cốc", "nĩa", "dao", "thìa", "bát", "chuối", "táo",
+  "bánh", "mì", "kẹp", "cam", "súp", "lơ", "xanh", "củ", "rốt", "xúc", "xích", "ngọt", "chậu", "giường", "bàn", "ăn", "bồn", "cầu",
+  "chuột", "tính", "điều", "khiển", "phím", "điện", "thoại",
+  "lò", "vi", "nướng", "rửa", "tủ", "lạnh", "quyển", "sách", "đồng", "hồ", "lọ", "hoa", "kéo", "bông",
+  "sấy", "tóc", "chải", "đánh", "răng", "[unk]"
+];
+
+export const VOSK_GRAMMAR = ["vision", "laptop", "mouse", "keyboard", "tv", "camera", "ok", "[unk]"];

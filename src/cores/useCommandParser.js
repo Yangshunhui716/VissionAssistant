@@ -3,16 +3,28 @@ import Fuse from 'fuse.js';
 import { COCO_LABELS_VI, ALIAS_MAP } from '../utils/recognitionProcessor/cocoLabels';
 import { getNGrams } from '../utils/textProcessor/nlpUtils';
 
+const INTENT_DICTIONARY = [
+  { intent: 'FIND', keywords: ['tìm', 'kiếm', 'ở đâu'] },
+  { intent: 'SCAN_GENERAL', keywords: ['có gì', 'nhận diện', 'phía trước', 'quét', 'trước mắt', 'nhìn'] }
+];
 
 export const useCommandParser = () => {
   const [targetToFind, setTargetToFind] = useState(null);
   const [isScanningGeneral, setIsScanningGeneral] = useState(false);
   const [searchFeedback, setSearchFeedback] = useState("");
 
-  const fuse = useMemo(() => {
+  const objectFuse = useMemo(() => {
     return new Fuse(COCO_LABELS_VI, {
       includeScore: true,
-      threshold: 0.4, 
+      threshold: 0.45, 
+    });
+  }, []);
+
+  const intentFuse = useMemo(() => {
+    return new Fuse(INTENT_DICTIONARY, {
+      includeScore: true,
+      threshold: 0.3,
+      keys: ['keywords']
     });
   }, []);
 
@@ -55,21 +67,47 @@ export const useCommandParser = () => {
       text = text.replace(regex, ALIAS_MAP[alias]);
     });
 
-    console.log("[LÕI AI] Đang xử lý câu nói:", text);
+    console.log("[LÕI AI] Đang xử lý câu nói thô:", text);
 
-    if (text.includes('tìm') || text.includes('kiếm') || text.includes('ở đâu')) {
-      
-      const chunks = getNGrams(text);
+    const chunks = getNGrams(text).sort((a, b) => b.length - a.length);
+    let detectedIntent = null;
+
+    for (const chunk of chunks) {
+      const intentResults = intentFuse.search(chunk);
+      if (intentResults.length > 0 && intentResults[0].score <= 0.4) {
+        detectedIntent = intentResults[0].item.intent; 
+        break;
+      }
+    }
+
+    if (!detectedIntent && (text.includes('tìm') || text.includes('kiếm'))) {
+      detectedIntent = 'FIND';
+    }
+
+    console.log("[LÕI AI] Ý định sau khi nắn ngọng:", detectedIntent);
+
+    if (detectedIntent === 'FIND') {
       let bestMatchName = null;
       let bestScore = 1;
 
-      for (const chunk of chunks) {
-        const results = fuse.search(chunk);
+      const multiWordChunks = chunks.filter(c => c.includes(' ') && c.length >= 3);
+      const singleWordChunks = chunks.filter(c => !c.includes(' ') && c.length >= 3);
+
+      const prioritizedChunks = [...multiWordChunks, ...singleWordChunks];
+
+      for (const chunk of prioritizedChunks) {
+        const results = objectFuse.search(chunk);
         if (results.length > 0) {
           const match = results[0];
-          if (match.score < bestScore) {
+
+          const isSingleWord = !chunk.includes(' ');
+          const allowedScore = isSingleWord ? 0.15 : 0.35;
+
+          if (match.score < bestScore && match.score <= allowedScore) {
             bestScore = match.score;
             bestMatchName = match.item;
+            
+            if (!isSingleWord && match.score <= 0.25) break;
           }
         }
       }
@@ -77,21 +115,22 @@ export const useCommandParser = () => {
       if (bestMatchName) {
         setTargetToFind(bestMatchName); 
         setSearchFeedback(`Đang quét tìm: ${bestMatchName}...`);
+        console.log(`[LỆNH CHỐT] Tìm đồ vật: ${bestMatchName} (Độ khớp: ${bestScore.toFixed(2)})`);
       } else {
         setSearchFeedback("Không rõ đồ vật cần tìm.");
+        console.log("[LỆNH CHỐT] Không tìm thấy vật thể nào khớp an toàn với từ điển.");
       }
     } 
-
-    else if (text.includes('có gì') || text.includes('nhận diện') || text.includes('phía trước') || text.includes('quét')) {
+    else if (detectedIntent === 'SCAN_GENERAL') {
       setIsScanningGeneral(true);
       setSearchFeedback("Đang nhận diện đồ vật trước mặt...");
-    }
-
+      console.log("[LỆNH CHỐT] Quét tổng quát không gian");
+    } 
     else {
       setSearchFeedback("Không nhận diện được lệnh.");
       setTimeout(() => setSearchFeedback('Đang ngủ... (Gọi "Vi sần" hoặc Chạm giữ)'), 4000);
     }
-  }, [fuse]);
+  }, [objectFuse, intentFuse]);
 
   return { 
     targetToFind, 

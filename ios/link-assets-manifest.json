@@ -14,16 +14,20 @@
       "sha1": "a0a51171c1463dc8bf261139031ddf9b8eb6ad51"
     },
     {
-      "path": "assets/model-vn-vn/graph/HCLG.fst",
-      "sha1": "ce0d95eacb10b81fc9e1bdce47c39dcd299068f2"
+      "path": "assets/model-vn-vn/graph/disambig_tid.int",
+      "sha1": "c54f43f132fc47028807ebe9466c1050a0b0fcd9"
+    },
+    {
+      "path": "assets/model-vn-vn/graph/Gr.fst",
+      "sha1": "04211e31d2e2e3bbe51b9b834dc4f1e369541bd2"
+    },
+    {
+      "path": "assets/model-vn-vn/graph/HCLr.fst",
+      "sha1": "d08a998d4ab5fc86f970c2644f5a06730b6c0191"
     },
     {
       "path": "assets/model-vn-vn/graph/phones/word_boundary.int",
       "sha1": "3d4da775e112ff26bfeba4a1a087fc930d6c78b6"
-    },
-    {
-      "path": "assets/model-vn-vn/graph/words.txt",
-      "sha1": "35743f5f72467bd7b86488de5bcf4c09fe8e6c2e"
     },
     {
       "path": "assets/model-vn-vn/ivector/final.dubm",
@@ -51,7 +55,7 @@
     },
     {
       "path": "assets/model-vn-vn/README",
-      "sha1": "9c6ced20067f39ceb0f159536a9ecc173fce7473"
+      "sha1": "1fbeae3d25e85621a4d5f03f1f815c4d067faba4"
     }
   ]
 }

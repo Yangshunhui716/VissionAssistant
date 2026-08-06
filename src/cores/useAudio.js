@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import * as vosk from 'react-native-vosk'; 
-import { VOSK_GRAMMAR } from '../utils/recognitionProcessor/cocoLabels';
+import { COMMAND_GRAMMAR, WAKE_GRAMMAR } from '../utils/recognitionProcessor/cocoLabels';
 
 export const useAudio = (hasMicPermission) => {
   const [appState, setAppState] = useState('SLEEP');
@@ -8,8 +8,8 @@ export const useAudio = (hasMicPermission) => {
   
   const stateRef = useRef('SLEEP');
   const timeoutRef = useRef(null);
-  
   const isModelLoaded = useRef(false); 
+  const isSwitching = useRef(false);
 
   const changeState = (newState, message) => {
     stateRef.current = newState;
@@ -20,20 +20,47 @@ export const useAudio = (hasMicPermission) => {
   const startVoskGuard = async () => {
     try {
       if (timeoutRef.current) clearTimeout(timeoutRef.current);
+      isSwitching.current = true;
       changeState('SLEEP', 'Đang ngủ... (Gọi "Vi sần" hoặc Chạm giữ)');
       
       if (isModelLoaded.current) {
-        await vosk.start({ grammar: VOSK_GRAMMAR });
+        await vosk.stop();
+        await vosk.start({ grammar: WAKE_GRAMMAR });
       }
+      isSwitching.current = false;
     } catch (e) {
-      console.log("Lỗi khởi động Vosk:", e);
+      console.log("Lỗi khởi động Vosk Guard:", e);
+      isSwitching.current = false;
     }
   };
 
-  const finalizeCommand = (finalText) => {
-    vosk.stop(); 
+  const switchToListening = async () => {
+    try {
+      if (isSwitching.current) return;
+      isSwitching.current = true;
+
+      changeState('WAKING_UP', 'Đã nghe! (Chuẩn bị...)');
+      await vosk.stop();
+
+      await new Promise(resolve => setTimeout(resolve, 600));
+
+      await vosk.start({ grammar: COMMAND_GRAMMAR });
+      changeState('LISTENING', 'Đang nghe lệnh...');
+      
+      isSwitching.current = false;
+    } catch (e) {
+      console.log("Lỗi chuyển đổi luồng:", e);
+      isSwitching.current = false;
+      startVoskGuard();
+    }
+  };
+
+  const finalizeCommand = async (finalText) => {
+    if (isSwitching.current) return;
     changeState('PROCESSING', finalText);
     console.log(">> LỆNH ĐÃ CHỐT:", finalText);
+    
+    await vosk.stop(); 
 
     setTimeout(() => {
       startVoskGuard();
@@ -55,6 +82,8 @@ export const useAudio = (hasMicPermission) => {
       });
 
     const voskResult = vosk.onPartialResult((res) => {
+      if (isSwitching.current) return;
+
       const text = (res || "").toString().toLowerCase().trim();
       if (!text) return;
       console.log(">> LISTENED:", text);
@@ -62,13 +91,7 @@ export const useAudio = (hasMicPermission) => {
       if (stateRef.current === 'SLEEP') {
         if (text.match(/(xin chào|vision|trợ lý)/)) {
           console.log(">> WAKE WORD:", text);
-          changeState('WAKING_UP', 'Đã nghe! (Chuẩn bị...)');
-          vosk.stop();
-
-          setTimeout(() => {
-            vosk.start({ grammar: VOSK_GRAMMAR });
-            changeState('LISTENING', 'Đang nghe lệnh...');
-          }, 800); 
+          switchToListening();
         }
       } 
       else if (stateRef.current === 'LISTENING') {
@@ -97,7 +120,7 @@ export const useAudio = (hasMicPermission) => {
 
   const manualWakeUp = () => {
     if (stateRef.current === 'SLEEP') {
-      changeState('LISTENING', 'Đang nghe lệnh...');
+      switchToListening();
     }
   };
 

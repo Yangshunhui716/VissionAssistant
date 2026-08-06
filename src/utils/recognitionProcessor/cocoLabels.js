@@ -11,7 +11,7 @@ export const COCO_LABELS = [
 ];
 
 export const COCO_LABELS_VI = [
-  'người', 'xe đạp', 'ô tô', 'xe máy', 'máy bay', 'xe buýt', 'tàu hỏa', 'xe tải', 'tàu thuyền', 'đèn giao thông',
+  'người', 'xe đạp', 'xe ô tô', 'xe máy', 'máy bay', 'xe buýt', 'tàu hỏa', 'xe tải', 'tàu thuyền', 'đèn giao thông',
   'trụ cứu hỏa', 'biển báo dừng', 'cột thu phí đỗ xe', 'băng ghế dài', 'con chim', 'con mèo', 'con chó', 'con ngựa', 'con cừu', 'con bò',
   'con voi', 'con gấu', 'ngựa vằn', 'hươu cao cổ', 'ba lô', 'cây dù', 'túi xách', 'cà vạt', 'vali', 'đĩa ném',
   'ván trượt tuyết đôi', 'tấm trượt tuyết', 'quả bóng', 'con diều', 'gậy bóng chày', 'găng tay bóng chày', 'ván trượt', 'ván lướt sóng',
@@ -23,7 +23,7 @@ export const COCO_LABELS_VI = [
 ];
 
 export const OBSTACLE_WHITELIST = [
-  'người', 'xe đạp', 'ô tô', 'xe máy', 'xe buýt', 'xe tải',
+  'người', 'xe đạp', 'xe ô tô', 'xe máy', 'xe buýt', 'xe tải',
   'trụ cứu hỏa', 'biển báo dừng', 'cột thu phí đỗ xe', 'băng ghế dài', 'cây dù',
   'con chó', 'con bò', 
   'cái ghế', 'ghế sofa', 'chậu cây', 'cái giường', 'bàn ăn', 'bồn cầu', 'tivi', 'tủ lạnh', 'lò nướng'
@@ -38,18 +38,16 @@ export const ALIAS_MAP = {
   "cái ô": "cây dù",
   "xe gắn máy": "xe máy",
   "xe honda": "xe máy",
-  "xe hơi": "ô tô",
-  "bốn bánh": "ô tô"
+  "xe hơi": "xe ô tô",
+  "bốn bánh": " xe ô tô"
 };
 
-const COMMAND_WORDS = [
-  "xin chào", "trợ lý", "ơi",
-  "tìm", "kiếm", "quét", "nhận diện", "đâu", "có gì", "phía trước", 
-  "cái", "cho", "tôi", "tui", "giúp", "mình", "nhé", "nha", "đi", "chiếc", "con", "quả", "kiểm", "tra", "túi"
+export const WAKE_GRAMMAR = [
+  "xin", "chào", "trợ", "lý", "ơi", "[unk]"
 ];
 
 const SAFE_WORDS_FROM_WORDS_TXT = [
-  "xin", "chào", "trợ", "lý", "ơi", "tìm", "kiếm", "quét", "nhận", "diện", "đâu", "có", "gì", "phía", "trước",
+  "tìm", "kiếm", "quét", "nhận", "diện", "đâu", "có", "gì", "phía", "trước",
   "cái", "cho", "tôi", "tui", "giúp", "mình", "nhé", "nha", "đi", "chiếc", "con", "quả", "kiểm", "tra", "túi",
   "người", "xe", "đạp", "ô", "tô", "máy", "bay", "buýt", "tàu", "hỏa", "tải", "thuyền", "đèn", "giao", "thông",
   "trụ", "cứu", "biển", "báo", "dừng", "cột", "thu", "phí", "đỗ", "băng", "ghế", "dài", "chim", "mèo", "chó", "ngựa", "cừu", "bò",
@@ -59,7 +57,7 @@ const SAFE_WORDS_FROM_WORDS_TXT = [
   "bánh", "mì", "kẹp", "cam", "súp", "lơ", "xanh", "củ", "rốt", "xúc", "xích", "ngọt", "chậu", "giường", "bàn", "ăn", "bồn", "cầu",
   "chuột", "tính", "điều", "khiển", "phím", "điện", "thoại",
   "lò", "vi", "nướng", "rửa", "tủ", "lạnh", "quyển", "sách", "đồng", "hồ", "lọ", "hoa", "kéo", "bông",
-  "sấy", "tóc", "chải", "đánh", "răng", "[unk]"
+  "sấy", "tóc", "chải", "đánh", "răng"
 ];
 
-export const VOSK_GRAMMAR = ["vision", "laptop", "mouse", "keyboard", "tv", "camera", "ok", "[unk]"];
+export const COMMAND_GRAMMAR = [...SAFE_WORDS_FROM_WORDS_TXT, "[unk]"];

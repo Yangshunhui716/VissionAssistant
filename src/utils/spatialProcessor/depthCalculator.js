@@ -35,8 +35,14 @@ export function getDepthFromMidas(yoloBox, depthMap) {
 };
 
 export function translateDepthToText(rawVal) {
-  if (rawVal <= 0) return "Không rõ";
-  if (rawVal > 150) return "Rất gần!";
-  if (rawVal > 100) return "Gần";
-  return "Xa";
+  'worklet';
+  
+  if (rawVal <= 0) return "không rõ";
+  if (rawVal > 200) return "dưới nửa mét";
+  if (rawVal > 150) return "khoảng 1 mét";
+  if (rawVal > 100) return "khoảng 2 mét";
+  if (rawVal > 60)  return "khoảng 3 mét";
+  if (rawVal > 30)  return "khoảng 5 mét";
+  
+  return "khá xa";
 };

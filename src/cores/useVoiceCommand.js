@@ -1,27 +1,29 @@
 import { useState, useEffect, useRef } from 'react';
 import * as vosk from 'react-native-vosk'; 
 import { COMMAND_GRAMMAR, WAKE_GRAMMAR } from '../utils/recognitionProcessor/cocoLabels';
+import { analyzeCommand } from '../utils/languageProcessor/intentAnalyzer';
 
-export const useAudio = (hasMicPermission) => {
+export const useVoiceCommand = (hasMicPermission, playFeedback, haptics, AI_PROMPTS) => {
   const [appState, setAppState] = useState('SLEEP');
-  const [transcript, setTranscript] = useState("Đang chờ khởi tạo...");
+  const [targetToFind, setTargetToFind] = useState(null);
+  const [isScanningGeneral, setIsScanningGeneral] = useState(false);
   
   const stateRef = useRef('SLEEP');
   const timeoutRef = useRef(null);
   const isModelLoaded = useRef(false); 
   const isSwitching = useRef(false);
 
-  const changeState = (newState, message) => {
+  const changeState = (newState, promptObj) => {
     stateRef.current = newState;
     setAppState(newState);
-    if (message) setTranscript(message);
+    if (promptObj) playFeedback(promptObj);
   };
 
   const startVoskGuard = async () => {
     try {
       if (timeoutRef.current) clearTimeout(timeoutRef.current);
       isSwitching.current = true;
-      changeState('SLEEP', 'Đang ngủ... (Gọi "Vi sần" hoặc Chạm giữ)');
+      changeState('SLEEP', AI_PROMPTS.system.sleeping);
       
       if (isModelLoaded.current) {
         await vosk.stop();
@@ -29,7 +31,7 @@ export const useAudio = (hasMicPermission) => {
       }
       isSwitching.current = false;
     } catch (e) {
-      console.log("Lỗi khởi động Vosk Guard:", e);
+      console.log("Lỗi Vosk Guard:", e);
       isSwitching.current = false;
     }
   };
@@ -38,18 +40,17 @@ export const useAudio = (hasMicPermission) => {
     try {
       if (isSwitching.current) return;
       isSwitching.current = true;
+      haptics.wakeUp();
 
-      changeState('WAKING_UP', 'Đã nghe! (Chuẩn bị...)');
+      changeState('WAKING_UP', AI_PROMPTS.system.wakingUp);
       await vosk.stop();
-
       await new Promise(resolve => setTimeout(resolve, 600));
 
       await vosk.start({ grammar: COMMAND_GRAMMAR });
-      changeState('LISTENING', 'Đang nghe lệnh...');
+      changeState('LISTENING', AI_PROMPTS.system.listening);
       
       isSwitching.current = false;
     } catch (e) {
-      console.log("Lỗi chuyển đổi luồng:", e);
       isSwitching.current = false;
       startVoskGuard();
     }
@@ -57,54 +58,49 @@ export const useAudio = (hasMicPermission) => {
 
   const finalizeCommand = async (finalText) => {
     if (isSwitching.current) return;
-    changeState('PROCESSING', finalText);
-    console.log(">> LỆNH ĐÃ CHỐT:", finalText);
-    
     await vosk.stop(); 
+    console.log(">> LỆNH ĐÃ CHỐT:", finalText);
 
-    setTimeout(() => {
-      startVoskGuard();
-    }, 3000);
+    // CHUYỂN QUA Utils NÃO BỘ NGÔN NGỮ
+    const { intent, targetName } = analyzeCommand(finalText);
+
+    if (intent === 'FIND') {
+      setTargetToFind(targetName);
+      playFeedback(AI_PROMPTS.search.start(targetName));
+    } 
+    else if (intent === 'SCAN_GENERAL') {
+      setIsScanningGeneral(true);
+      playFeedback(AI_PROMPTS.scan.start);
+    } 
+    else {
+      haptics.error();
+      playFeedback(AI_PROMPTS.search.invalid);
+    }
+
+    setTimeout(startVoskGuard, 3500);
   };
 
   useEffect(() => {
     if (!hasMicPermission) return;
 
-    vosk.loadModel('model-vn-vn')
-      .then(() => {
-        console.log("Nạp mô hình Vosk thành công!");
+    vosk.loadModel('model-vn-vn').then(() => {
         isModelLoaded.current = true;
         startVoskGuard();
-      })
-      .catch((e) => {
-        console.error("Lỗi nạp mô hình:", e);
-        setTranscript("Lỗi: Không tìm thấy mô hình");
-      });
+    });
 
     const voskResult = vosk.onPartialResult((res) => {
       if (isSwitching.current) return;
-
       const text = (res || "").toString().toLowerCase().trim();
       if (!text) return;
-      console.log(">> LISTENED:", text);
 
       if (stateRef.current === 'SLEEP') {
-        if (text.match(/(xin chào|vision|trợ lý)/)) {
-          console.log(">> WAKE WORD:", text);
-          switchToListening();
-        }
+        if (text.match(/(xin chào|vision|trợ lý)/)) switchToListening();
       } 
       else if (stateRef.current === 'LISTENING') {
-        setTranscript(text);
-
         if (timeoutRef.current) clearTimeout(timeoutRef.current);
-        
         timeoutRef.current = setTimeout(() => {
-          if (text.length > 2) {
-            finalizeCommand(text);
-          } else {
-            startVoskGuard(); 
-          }
+          if (text.length > 2) finalizeCommand(text);
+          else startVoskGuard(); 
         }, 1500); 
       }
     });
@@ -118,22 +114,10 @@ export const useAudio = (hasMicPermission) => {
     };
   }, [hasMicPermission]);
 
-  const manualWakeUp = () => {
-    if (stateRef.current === 'SLEEP') {
-      switchToListening();
-    }
-  };
-
-  const manualStop = () => {
-    if (stateRef.current === 'LISTENING') {
-      startVoskGuard();
-    }
-  };
-
   return { 
-    appState, 
-    transcript, 
-    manualWakeUp, 
-    manualStop 
+    appState, targetToFind, isScanningGeneral, 
+    setTargetToFind, setIsScanningGeneral,
+    manualWakeUp: switchToListening, 
+    manualStop: startVoskGuard 
   };
 };

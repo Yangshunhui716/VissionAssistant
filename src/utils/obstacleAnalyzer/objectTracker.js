@@ -1,35 +1,32 @@
-export const FRAME_SIZE = 320;
-
+const FRAME_SIZE = 320;
 const IOU_MATCH = 0.3;
 const CONFIRM_HITS = 2;
 const MAX_MISSES = 3;
 const HISTORY_LEN = 5;
 const STALE_MS = 2000;
-
 const EMERGENCY_AREA_RATIO = 0.30;
 const GROWTH_RATIO = 1.15;
 const CROSS_MOVE = FRAME_SIZE * 0.09;
 
-
-function iou(a, b) {
+const iou = (a, b) => {
   'worklet';
   const interX = Math.max(0, Math.min(a.x + a.width, b.x + b.width) - Math.max(a.x, b.x));
   const interY = Math.max(0, Math.min(a.y + a.height, b.y + b.height) - Math.max(a.y, b.y));
   const inter = interX * interY;
   const union = a.width * a.height + b.width * b.height - inter;
   return union > 0 ? inter / union : 0;
-}
+};
 
-function pushHistory(tr) {
+const pushHistory = (tr) => {
   'worklet';
   tr.history.push({
     area: tr.width * tr.height,
     cx: tr.x + tr.width / 2,
   });
   if (tr.history.length > HISTORY_LEN) tr.history.shift();
-}
+};
 
-function computeMotion(tr) {
+const computeMotion = (tr) => {
   'worklet';
   if (tr.history.length < 3) return 'Tĩnh';
 
@@ -46,9 +43,9 @@ function computeMotion(tr) {
   }
 
   return 'Tĩnh';
-}
+};
 
-export function updateTracks(detections, now, cocoLabelsVi, whitelist) {
+export const updateTracks = (detections, now, cocoLabelsVi, whitelist) => {
   'worklet';
 
   const g = globalThis;
@@ -141,4 +138,4 @@ export function updateTracks(detections, now, cocoLabelsVi, whitelist) {
   }
 
   return result;
-}
+};

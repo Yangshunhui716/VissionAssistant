@@ -1,4 +1,4 @@
-export function gridWeighting(validObstacles, cocoLabelsVi) {
+export const gridWeighting = (validObstacles, cocoLabelsVi) => {
   'worklet';
 
   if (validObstacles.length === 0) {
@@ -23,4 +23,4 @@ export function gridWeighting(validObstacles, cocoLabelsVi) {
   const targetName = cocoLabelsVi[mostDangerousTarget.labelIdx];
 
   return { mostDangerousTarget, targetName };
-}
+};

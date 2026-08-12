@@ -1,4 +1,4 @@
-function calculateIoU(a, b) {
+const calculateIoU = (a, b) => {
   'worklet';
   const interX = Math.max(0, Math.min(a.x + a.width, b.x + b.width) - Math.max(a.x, b.x));
   const interY = Math.max(0, Math.min(a.y + a.height, b.y + b.height) - Math.max(a.y, b.y));
@@ -6,15 +6,15 @@ function calculateIoU(a, b) {
   const areaA = a.width * a.height;
   const areaB = b.width * b.height;
   return intersection / (areaA + areaB - intersection);
-}
+};
 
-export function parseYoloOutput(rawOutputs) {
+export const parseYoloOutput = (rawOutputs) => {
   'worklet';
   
   const output = new Float32Array(rawOutputs[0]);
   const numAnchors = 2100; 
   const numClasses = 80; 
-  const confidenceThreshold = 0.2; 
+  const confidenceThreshold = 0.05; 
   const iouThreshold = 0.7; 
 
   const detections = [];
@@ -66,4 +66,4 @@ export function parseYoloOutput(rawOutputs) {
   }
 
   return result;
-}
+};

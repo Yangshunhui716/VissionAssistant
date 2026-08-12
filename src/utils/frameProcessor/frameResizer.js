@@ -58,4 +58,4 @@ export function resize(srcPixels, srcWidth, srcHeight,
     }
   }
   return dstPixels;
-}
+};

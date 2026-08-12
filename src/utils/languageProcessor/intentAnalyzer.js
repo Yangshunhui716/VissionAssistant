@@ -1,6 +1,6 @@
 import Fuse from 'fuse.js';
-import { COCO_LABELS_VI, ALIAS_MAP } from '../recognitionProcessor/cocoLabels';
-import { getNGrams } from './nlpUtils';
+import { COCO_LABELS_VI } from '../recognitionProcessor/labels';
+import { ALIAS_MAP } from '../languageProcessor/grammar';
 
 const INTENT_DICTIONARY = [
   { intent: 'FIND', keywords: ['tìm', 'kiếm', 'ở đâu'] },
@@ -9,6 +9,19 @@ const INTENT_DICTIONARY = [
 
 const intentFuse = new Fuse(INTENT_DICTIONARY, { includeScore: true, threshold: 0.3, keys: ['keywords'] });
 const objectFuse = new Fuse(COCO_LABELS_VI, { includeScore: true, threshold: 0.45 });
+
+const getNGrams = (text) => {
+  const words = text.split(' ').filter(w => w.trim() !== '');
+  const nGrams = [];
+  for (let i = 0; i < words.length; i++) {
+    let chunk = "";
+    for (let j = 0; j < 3 && i + j < words.length; j++) {
+      chunk += (j > 0 ? " " : "") + words[i + j];
+      nGrams.push(chunk);
+    }
+  }
+  return nGrams;
+};
 
 export const analyzeCommand = (rawText) => {
   let text = rawText.toLowerCase().trim();
@@ -29,6 +42,7 @@ export const analyzeCommand = (rawText) => {
       break;
     }
   }
+  
   if (!detectedIntent && (text.includes('tìm') || text.includes('kiếm'))) detectedIntent = 'FIND';
 
   if (detectedIntent === 'FIND') {

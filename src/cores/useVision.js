@@ -6,14 +6,15 @@ import { scheduleOnRN } from 'react-native-worklets';
 
 import { resize } from '../utils/frameProcessor/frameResizer';
 import { parseYoloOutput } from '../utils/recognitionProcessor/yoloParser';
-import { COCO_LABELS_VI, OBSTACLE_WHITELIST } from '../utils/recognitionProcessor/cocoLabels';
-import { getProminentObject } from '../utils/recognitionProcessor/prominentFinder';
-import { checkSearchTarget } from '../utils/recognitionProcessor/targetFinder';
+import { COCO_LABELS_VI, OBSTACLE_WHITELIST } from '../utils/recognitionProcessor/labels';
+import { processGeneralScan, resetGeneralScan } from '../utils/recognitionProcessor/prominentFinder';
+import { processSearch, resetSearch } from '../utils/recognitionProcessor/targetFinder';
 import { getDepthFromMidas, translateDepthToText } from '../utils/spatialProcessor/depthCalculator';
 import { analyzeSpatialObject } from '../utils/spatialProcessor/spatialAnalyzer'; 
 import { gridWeighting } from '../utils/obstacleAnalyzer/gridWeighting';
 import { updateTracks } from '../utils/obstacleAnalyzer/objectTracker';
 import { analyzeThreat } from '../utils/obstacleAnalyzer/threatAnalyzer';
+import { isCameraBlocked } from '../utils/frameProcessor/focusAnalyzer';
 
 
 const aiDelegates = (Platform.OS === 'ios') ? ['core-ml', 'metal'] : ['android-gpu', 'nnapi'];
@@ -23,8 +24,8 @@ let lastRealDepth = 0;
 let lastRealArea = 0;
 let lastTargetName = '';
 
-export const useVision = (searchTarget, onSearchComplete, 
-      isScanningGeneral, onGeneralScanComplete, onThreatDetected) => {
+export const useVision = (searchTarget, onSearchComplete, isScanningGeneral, onGeneralScanComplete, 
+    onThreatDetected, onOutFocusDetected, isShaking) => {
   const yoloModel = useTensorflowModel(require('../assets/models/yolo11n.tflite'), aiDelegates);
   const midasModel = useTensorflowModel(require('../assets/models/midas.tflite'), aiDelegates);
 
@@ -32,9 +33,21 @@ export const useVision = (searchTarget, onSearchComplete,
   const [objectList, setObjectList] = useState([]);
   const [detectedObj, setDetectedObj] = useState({ name: 'Không phát hiện', depth: '', motion: '' });
 
-  const updateFps = (newFps) => setFps(newFps);
-  const updateList = (names) => setObjectList(names);
-  const clearAlert = () => setDetectedObj({ name: 'Không phát hiện', depth: '', motion: '' });
+  const updateFps = (newFps) => {
+    setFps(prev => (prev === newFps ? prev : newFps));
+  };
+  const updateList = (names) => {
+    setObjectList(prev => {
+      if (prev.length === names.length && prev.every((v, i) => v === names[i])) return prev;
+      return names;
+    });
+  };
+  const clearAlert = () => {
+    setDetectedObj(prev => {
+      if (prev.name === 'Không phát hiện') return prev;
+      return { name: 'Không phát hiện', depth: '', motion: '' };
+    });
+  };
 
   const lastSpokenThreatRef = useRef("");
   const lastSpokenTimeRef = useRef(0);
@@ -55,14 +68,17 @@ export const useVision = (searchTarget, onSearchComplete,
         depthText = 'Đang đo...';
       }
     }
-    setDetectedObj({ name: displayAlertName, depth: depthText, motion });
+    
+    setDetectedObj(prev => {
+      if (prev.name === displayAlertName && prev.depth === depthText && prev.motion === motion) return prev;
+      return { name: displayAlertName, depth: depthText, motion };
+    });
 
     if (depthText === "dưới nửa mét" || depthText === "khoảng 1 mét") {
       const now = Date.now();
       if (displayAlertName !== lastSpokenThreatRef.current || now - lastSpokenTimeRef.current > 4000) {
          lastSpokenThreatRef.current = displayAlertName;
          lastSpokenTimeRef.current = now;
-
          onThreatDetected(`${displayAlertName}, cách ${depthText}`);
       }
     }
@@ -74,21 +90,42 @@ export const useVision = (searchTarget, onSearchComplete,
       'worklet';
       try {
         if (yoloModel.state === 'loaded' && midasModel.state === 'loaded') {
-          const g = globalThis;
           const now = Date.now();
+
+          if (isShaking.value) {
+            globalThis.__lastMidasTime = 0; 
+            globalThis.__lastTargetName = '';
+            scheduleOnRN(clearAlert);
+            return;
+          }
           
-          if (!g.__lastProcessTime || now - g.__lastProcessTime > 200) {
-            g.__lastProcessTime = now;
+          if (!globalThis.__lastProcessTime || now - globalThis.__lastProcessTime > 200) {
+            globalThis.__lastProcessTime = now;
             const frameData = new Uint8Array(frame.getPixelBuffer());
             const yoloResized = resize(frameData, frame.width, frame.height, 320, 320, frame.bytesPerRow, yoloBuffer, 'CHW');
-            const yoloOutputs = yoloModel.model.runSync([yoloResized.buffer]);
             
+            const isBlocked = isCameraBlocked(yoloBuffer, 320, 320);
+            if (isBlocked) {
+              if (now - (globalThis.__lastBlockedWarnTime || 0) > 6000) {
+                globalThis.__lastBlockedWarnTime = now;
+                scheduleOnRN(onOutFocusDetected);
+              }
+              globalThis.__lastMidasTime = 0;
+              globalThis.__lastTargetName = '';
+              return; 
+            }
+            globalThis.__lastBlockedWarnTime = 0;
+
+            const yoloOutputs = yoloModel.model.runSync([yoloResized.buffer]);
             const parsed = parseYoloOutput(yoloOutputs);
 
             if (isScanningGeneral) {
-              const prominentName = getProminentObject(parsed, COCO_LABELS_VI);
-              const displayList = prominentName ? [prominentName] : [];
-              scheduleOnRN(onGeneralScanComplete, displayList);
+              const scanProcess = processGeneralScan(parsed, COCO_LABELS_VI, 5);
+              if (scanProcess.status === 'DONE') {
+                 scheduleOnRN(onGeneralScanComplete, scanProcess.result);
+              }
+            } else {
+              resetGeneralScan(); 
             }
 
             const trackedObstacles = updateTracks(parsed, now, COCO_LABELS_VI, OBSTACLE_WHITELIST);
@@ -102,28 +139,27 @@ export const useVision = (searchTarget, onSearchComplete,
             const { mostDangerousTarget, targetName } = gridWeighting(trackedObstacles, COCO_LABELS_VI);
             const motionState = mostDangerousTarget ? mostDangerousTarget.motion : "Tĩnh";
 
-            let currentDepthMap = g.__lastDepthMap; 
-
+            let currentDepthMap = globalThis.__lastDepthMap; 
             if (mostDangerousTarget) {
               const currentArea = mostDangerousTarget.width * mostDangerousTarget.height;
               const displayAlertName = analyzeThreat(mostDangerousTarget, targetName, trackedObstacles, COCO_LABELS_VI);
-              scheduleOnRN(updateAlert, targetName, displayAlertName, null, motionState, currentArea);
-
-              const timeSinceLastMidas = now - (g.__lastMidasTime || 0);
-              const isNewTarget = targetName !== g.__lastTargetName;
-
+              const timeSinceLastMidas = now - (globalThis.__lastMidasTime || 0);
+              const isNewTarget = targetName !== globalThis.__lastTargetName;
+              let rawDepth = null;
               if (timeSinceLastMidas > 2000 || (isNewTarget && timeSinceLastMidas > 500)) {
-                g.__lastMidasTime = now;
-                g.__lastTargetName = targetName;
+                globalThis.__lastMidasTime = now;
+                globalThis.__lastTargetName = targetName;
 
                 const midasResized = resize(frameData, frame.width, frame.height, 256, 256, frame.bytesPerRow, midasBuffer, 'HWC');
                 if (midasModel.model) {
-                   const midasOutputs = midasModel.model.runSync([midasResized.buffer]);
-                   currentDepthMap = new Float32Array(midasOutputs[0]); 
-                   g.__lastDepthMap = currentDepthMap;
+                  const midasOutputs = midasModel.model.runSync([midasResized.buffer]);
+                  currentDepthMap = new Float32Array(midasOutputs[0]); 
+                  globalThis.__lastDepthMap = currentDepthMap;
                    
-                   const rawDepth = getDepthFromMidas(mostDangerousTarget, currentDepthMap);
-                   scheduleOnRN(updateAlert, targetName, displayAlertName, rawDepth, motionState, currentArea);
+                  if (currentDepthMap) {
+                    rawDepth = getDepthFromMidas(mostDangerousTarget, currentDepthMap);
+                  }
+                  scheduleOnRN(updateAlert, targetName, displayAlertName, rawDepth, motionState, currentArea);
                 }
               }
             } else {
@@ -131,29 +167,25 @@ export const useVision = (searchTarget, onSearchComplete,
             }
 
             if (searchTarget) {
-              g.__searchFrameCount = (g.__searchFrameCount || 0) + 1;
-              const searchResult = checkSearchTarget(parsed, searchTarget, COCO_LABELS_VI, g.__searchFrameCount);
-              
+              const searchResult = processSearch(parsed, searchTarget, COCO_LABELS_VI, 5);
               if (searchResult.status === 'FOUND') {
-                const foundObj = searchResult.item;
-                let spatialMessage = searchTarget;
-                spatialMessage = analyzeSpatialObject(foundObj, searchTarget, currentDepthMap);
+                const spatialMessage = analyzeSpatialObject(searchResult.item, searchTarget, currentDepthMap);
                 scheduleOnRN(onSearchComplete, true, spatialMessage);
-                g.__searchFrameCount = 0;
-              } else if (searchResult.status === 'NOT_FOUND') {
-                scheduleOnRN(onSearchComplete, false, searchTarget);
-                g.__searchFrameCount = 0;
               }
+              else if (searchResult.status === 'NOT_FOUND') {
+                scheduleOnRN(onSearchComplete, false, searchTarget);
+              }
+            } else {
+              resetSearch(); 
             }
-
           }
 
-          g.__frameCount = (g.__frameCount || 0) + 1;
-          g.__lastFpsTime = g.__lastFpsTime || Date.now();
-          if (now - g.__lastFpsTime >= 1000) {
-            scheduleOnRN(updateFps, g.__frameCount);
-            g.__frameCount = 0;
-            g.__lastFpsTime = now;
+          globalThis.__frameCount = (globalThis.__frameCount || 0) + 1;
+          globalThis.__lastFpsTime = globalThis.__lastFpsTime || Date.now();
+          if (now - globalThis.__lastFpsTime >= 1000) {
+            scheduleOnRN(updateFps, globalThis.__frameCount);
+            globalThis.__frameCount = 0;
+            globalThis.__lastFpsTime = now;
           }
         }
       } catch (e) {
@@ -162,7 +194,7 @@ export const useVision = (searchTarget, onSearchComplete,
         frame.dispose();
       }
     },
-  });
+  }, [searchTarget, isScanningGeneral]);
 
   return { frameOutput, fps, objectList, detectedObj, isModelsLoaded: yoloModel.state === 'loaded' && midasModel.state === 'loaded' };
 };

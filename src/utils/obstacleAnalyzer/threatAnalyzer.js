@@ -1,4 +1,4 @@
-export function analyzeThreat(mostDangerousTarget, targetName, trackedObstacles, cocoLabels) {
+export const analyzeThreat = (mostDangerousTarget, targetName, trackedObstacles, cocoLabels) => {
   'worklet';
 
   if (!mostDangerousTarget) return "";
@@ -35,4 +35,4 @@ export function analyzeThreat(mostDangerousTarget, targetName, trackedObstacles,
   }
 
   return displayAlertName; 
-}
+};

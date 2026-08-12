@@ -1,9 +1,10 @@
 import { useState, useEffect, useRef } from 'react';
 import * as vosk from 'react-native-vosk'; 
-import { COMMAND_GRAMMAR, WAKE_GRAMMAR } from '../utils/recognitionProcessor/cocoLabels';
+import { COMMAND_GRAMMAR, WAKE_GRAMMAR } from '../utils/languageProcessor/grammar';
 import { analyzeCommand } from '../utils/languageProcessor/intentAnalyzer';
+import { PROMPTS } from '../utils/languageProcessor/feedbackPrompts';
 
-export const useVoiceCommand = (hasMicPermission, playFeedback, haptics, AI_PROMPTS) => {
+export const useVoiceCommand = (hasMicPermission, playFeedback, haptics) => {
   const [appState, setAppState] = useState('SLEEP');
   const [targetToFind, setTargetToFind] = useState(null);
   const [isScanningGeneral, setIsScanningGeneral] = useState(false);
@@ -23,7 +24,7 @@ export const useVoiceCommand = (hasMicPermission, playFeedback, haptics, AI_PROM
     try {
       if (timeoutRef.current) clearTimeout(timeoutRef.current);
       isSwitching.current = true;
-      changeState('SLEEP', AI_PROMPTS.system.sleeping);
+      changeState('SLEEP', PROMPTS.system.sleeping);
       
       if (isModelLoaded.current) {
         await vosk.stop();
@@ -42,12 +43,12 @@ export const useVoiceCommand = (hasMicPermission, playFeedback, haptics, AI_PROM
       isSwitching.current = true;
       haptics.wakeUp();
 
-      changeState('WAKING_UP', AI_PROMPTS.system.wakingUp);
+      changeState('WAKING_UP', PROMPTS.system.wakingUp);
       await vosk.stop();
       await new Promise(resolve => setTimeout(resolve, 600));
 
       await vosk.start({ grammar: COMMAND_GRAMMAR });
-      changeState('LISTENING', AI_PROMPTS.system.listening);
+      changeState('LISTENING', PROMPTS.system.listening);
       
       isSwitching.current = false;
     } catch (e) {
@@ -60,21 +61,19 @@ export const useVoiceCommand = (hasMicPermission, playFeedback, haptics, AI_PROM
     if (isSwitching.current) return;
     await vosk.stop(); 
     console.log(">> LỆNH ĐÃ CHỐT:", finalText);
-
-    // CHUYỂN QUA Utils NÃO BỘ NGÔN NGỮ
     const { intent, targetName } = analyzeCommand(finalText);
 
     if (intent === 'FIND') {
       setTargetToFind(targetName);
-      playFeedback(AI_PROMPTS.search.start(targetName));
+      playFeedback(PROMPTS.search.start(targetName));
     } 
     else if (intent === 'SCAN_GENERAL') {
       setIsScanningGeneral(true);
-      playFeedback(AI_PROMPTS.scan.start);
+      playFeedback(PROMPTS.scan.start);
     } 
     else {
       haptics.error();
-      playFeedback(AI_PROMPTS.search.invalid);
+      playFeedback(PROMPTS.search.invalid);
     }
 
     setTimeout(startVoskGuard, 3500);
@@ -92,9 +91,10 @@ export const useVoiceCommand = (hasMicPermission, playFeedback, haptics, AI_PROM
       if (isSwitching.current) return;
       const text = (res || "").toString().toLowerCase().trim();
       if (!text) return;
+      console.log(">> KẾT QUẢ VOSK:", text);
 
       if (stateRef.current === 'SLEEP') {
-        if (text.match(/(xin chào|vision|trợ lý)/)) switchToListening();
+        if (text.match(/(xin chào|trợ lý)/)) switchToListening();
       } 
       else if (stateRef.current === 'LISTENING') {
         if (timeoutRef.current) clearTimeout(timeoutRef.current);

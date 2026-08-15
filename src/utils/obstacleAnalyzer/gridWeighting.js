@@ -10,8 +10,8 @@ export const gridWeighting = (validObstacles, cocoLabelsVi) => {
     const bottomY = obj.y + obj.height;
     
     let weight = 1.0;
-    if (bottomY < 106) weight = 0.5;
-    else if (bottomY < 213) weight = 1.0;
+    if (bottomY < 212) weight = 0.5;
+    else if (bottomY < 426) weight = 1.0;
     else weight = 2.0;
 
     obj.dangerScore = area * weight;

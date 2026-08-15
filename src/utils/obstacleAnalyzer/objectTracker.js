@@ -1,4 +1,4 @@
-const FRAME_SIZE = 320;
+const FRAME_SIZE = 640;
 const IOU_MATCH = 0.3;
 const CONFIRM_HITS = 2;
 const MAX_MISSES = 3;

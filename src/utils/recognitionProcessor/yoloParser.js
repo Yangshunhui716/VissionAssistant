@@ -12,9 +12,9 @@ export const parseYoloOutput = (rawOutputs) => {
   'worklet';
   
   const output = new Float32Array(rawOutputs[0]);
-  const numAnchors = 2100; 
+  const numAnchors = 8400; 
   const numClasses = 80; 
-  const confidenceThreshold = 0.05; 
+  const confidenceThreshold = 0.5;
   const iouThreshold = 0.7; 
 
   const detections = [];
@@ -32,10 +32,10 @@ export const parseYoloOutput = (rawOutputs) => {
     }
 
     if (maxScore > confidenceThreshold) {
-      const cx = output[0 * numAnchors + i] * 320;
-      const cy = output[1 * numAnchors + i] * 320;
-      const w = output[2 * numAnchors + i] * 320;
-      const h = output[3 * numAnchors + i] * 320;
+      const cx = output[0 * numAnchors + i] * 640;
+      const cy = output[1 * numAnchors + i] * 640;
+      const w = output[2 * numAnchors + i] * 640;
+      const h = output[3 * numAnchors + i] * 640;
 
       detections.push({
         labelIdx: classIdx,
@@ -63,6 +63,16 @@ export const parseYoloOutput = (rawOutputs) => {
         i--;
       }
     }
+  }
+
+  // 🔥 THÊM ĐOẠN CODE NÀY ĐỂ IN LOG RA CONSOLE
+  if (result.length > 0) {
+    // Gom tất cả kết quả lại thành một chuỗi dễ đọc
+    const logMessage = result.map(obj => 
+      `- Lớp (Class ID): ${obj.labelIdx} | Độ tự tin: ${(obj.score * 100).toFixed(1)}% | Tọa độ: [x: ${obj.x.toFixed(0)}, y: ${obj.y.toFixed(0)}, w: ${obj.width.toFixed(0)}, h: ${obj.height.toFixed(0)}]`
+    ).join('\n');
+    
+    console.log(`\n=== Yolo đã phát hiện ${result.length} vật thể ===\n${logMessage}`);
   }
 
   return result;

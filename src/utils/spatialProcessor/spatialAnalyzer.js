@@ -10,9 +10,9 @@ export const analyzeSpatialObject = (obj, name, depthMap) => {
   const xCenter = obj.x + (obj.width / 2);
   let positionText = "ngay phía trước";
   
-  if (xCenter < 320 * 0.35) {
+  if (xCenter < 640 * 0.35) {
     positionText = "nằm bên trái";
-  } else if (xCenter > 320 * 0.65) {
+  } else if (xCenter > 640 * 0.65) {
     positionText = "nằm bên phải";
   }
 

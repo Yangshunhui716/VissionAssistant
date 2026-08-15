@@ -17,8 +17,8 @@ import { analyzeThreat } from '../utils/obstacleAnalyzer/threatAnalyzer';
 import { isCameraBlocked } from '../utils/frameProcessor/focusAnalyzer';
 
 
-const aiDelegates = (Platform.OS === 'ios') ? ['core-ml', 'metal'] : ['android-gpu', 'nnapi'];
-const yoloBuffer = new Float32Array(320 * 320 * 3);
+const aiDelegates = (Platform.OS === 'ios') ? ['core-ml', 'metal'] : ['android-gpu'];
+const yoloBuffer = new Float32Array(640 * 640 * 3);
 const midasBuffer = new Float32Array(256 * 256 * 3);
 let lastRealDepth = 0;
 let lastRealArea = 0;
@@ -26,7 +26,7 @@ let lastTargetName = '';
 
 export const useVision = (searchTarget, onSearchComplete, isScanningGeneral, onGeneralScanComplete, 
     onThreatDetected, onOutFocusDetected, isShaking) => {
-  const yoloModel = useTensorflowModel(require('../assets/models/yolo11n.tflite'), aiDelegates);
+  const yoloModel = useTensorflowModel(require('../assets/models/yolo11n-640.tflite'), aiDelegates);
   const midasModel = useTensorflowModel(require('../assets/models/midas.tflite'), aiDelegates);
 
   const [fps, setFps] = useState(0);
@@ -102,9 +102,9 @@ export const useVision = (searchTarget, onSearchComplete, isScanningGeneral, onG
           if (!globalThis.__lastProcessTime || now - globalThis.__lastProcessTime > 200) {
             globalThis.__lastProcessTime = now;
             const frameData = new Uint8Array(frame.getPixelBuffer());
-            const yoloResized = resize(frameData, frame.width, frame.height, 320, 320, frame.bytesPerRow, yoloBuffer, 'CHW');
+            const yoloResized = resize(frameData, frame.width, frame.height, 640, 640, frame.bytesPerRow, yoloBuffer, 'CHW');
             
-            const isBlocked = isCameraBlocked(yoloBuffer, 320, 320);
+            const isBlocked = isCameraBlocked(yoloBuffer, 640, 640);
             if (isBlocked) {
               if (now - (globalThis.__lastBlockedWarnTime || 0) > 6000) {
                 globalThis.__lastBlockedWarnTime = now;

@@ -1,3 +1,17 @@
+// import lvisJson from './lvis_labels.json';
+// import lvisJsonVi from './lvis_labels_vi.json';
+
+// export const COCO_LABELS = [];
+// export const COCO_LABELS_VI = [];
+
+// for (let i = 0; i <= 4584; i++) {
+//   COCO_LABELS.push(lvisJson[i.toString()]);
+// }
+
+// for (let i = 0; i <= 4584; i++) {
+//   COCO_LABELS_VI.push(lvisJsonVi[i.toString()]);
+// } 
+
 export const COCO_LABELS = [
   'person', 'bicycle', 'car', 'motorcycle', 'airplane', 'bus', 'train', 'truck', 'boat', 'traffic light',
   'fire hydrant', 'stop sign', 'parking meter', 'bench', 'bird', 'cat', 'dog', 'horse', 'sheep', 'cow',
@@ -22,7 +36,8 @@ export const COCO_LABELS_VI = [
   'máy sấy tóc', 'bàn chải đánh răng'
 ];
 
-export const OBSTACLE_WHITELIST = [
+export const OBSTACLE_WHITELIST =
+[
   'người', 'xe đạp', 'xe ô tô', 'xe máy', 'xe buýt', 'xe tải',
   'trụ cứu hỏa', 'biển báo dừng', 'cột thu phí đỗ xe', 'băng ghế dài', 'cây dù',
   'con chó', 'con bò', 

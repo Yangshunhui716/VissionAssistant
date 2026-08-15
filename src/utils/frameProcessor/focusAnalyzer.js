@@ -19,5 +19,5 @@ export const isCameraBlocked = (buffer, width, height) => {
   const variance = (sumSq / count) - (mean * mean);
   const standardDeviation = Math.sqrt(variance);
 
-  return standardDeviation < 15;
+  return standardDeviation < 7;
 };

@@ -1,10 +1,10 @@
 export const getDepthFromMidas = (yoloBox, depthMap) => {
   'worklet';
 
-  const midasX = Math.max(0, Math.floor((yoloBox.x / 320) * 256));
-  const midasY = Math.max(0, Math.floor((yoloBox.y / 320) * 256));
-  const midasW = Math.min(256 - midasX, Math.floor((yoloBox.width / 320) * 256));
-  const midasH = Math.min(256 - midasY, Math.floor((yoloBox.height / 320) * 256));
+  const midasX = Math.max(0, Math.floor((yoloBox.x / 640) * 256));
+  const midasY = Math.max(0, Math.floor((yoloBox.y / 640) * 256));
+  const midasW = Math.min(256 - midasX, Math.floor((yoloBox.width / 640) * 256));
+  const midasH = Math.min(256 - midasY, Math.floor((yoloBox.height / 640) * 256));
 
   const coreX = midasX + Math.floor(midasW * 0.25);
   const coreY = midasY + Math.floor(midasH * 0.4);

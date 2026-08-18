@@ -1,9 +1,11 @@
-const getProminentObject = (parsedDetections, cocoLabelsVi) => {
+const DIST_SMOOTHING_FACTOR = 10; 
+
+const getProminentObject = (parsedDetections, cocoLabelsVi, yoloSize) => {
   'worklet';
   
   let prominentName = null;
   let maxWeight = 0;
-  const FRAME_CENTER = 160;
+  const frameCenter = yoloSize / 2;
 
   for (let i = 0; i < parsedDetections.length; i++) {
     const obj = parsedDetections[i];
@@ -12,10 +14,10 @@ const getProminentObject = (parsedDetections, cocoLabelsVi) => {
     const objCenterY = obj.y + (obj.height / 2);
 
     const distToCenter = Math.sqrt(
-      Math.pow(objCenterX - FRAME_CENTER, 2) + Math.pow(objCenterY - FRAME_CENTER, 2)
+      Math.pow(objCenterX - frameCenter, 2) + Math.pow(objCenterY - frameCenter, 2)
     );
 
-    const weight = area / (distToCenter + 10); 
+    const weight = area / (distToCenter + DIST_SMOOTHING_FACTOR); 
 
     if (weight > maxWeight) {
       maxWeight = weight;
@@ -26,12 +28,12 @@ const getProminentObject = (parsedDetections, cocoLabelsVi) => {
   return prominentName;
 };
 
-export const processGeneralScan = (parsedDetections, cocoLabelsVi, maxFrames = 3) => {
+export const processGeneralScan = (parsedDetections, cocoLabelsVi, yoloSize, maxFrames = 3) => {
   'worklet';
   globalThis.__scanFrameCount = (globalThis.__scanFrameCount || 0) + 1;
   globalThis.__scanResults = globalThis.__scanResults || [];
 
-  const prominentName = getProminentObject(parsedDetections, cocoLabelsVi);
+  const prominentName = getProminentObject(parsedDetections, cocoLabelsVi, yoloSize);
   if (prominentName) globalThis.__scanResults.push(prominentName);
 
   if (globalThis.__scanFrameCount < maxFrames) return { status: 'SCANNING', result: null };

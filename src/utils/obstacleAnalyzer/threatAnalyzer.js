@@ -1,29 +1,33 @@
-export const analyzeThreat = (mostDangerousTarget, targetName, trackedObstacles, cocoLabels) => {
+export const analyzeThreat = (mostDangerousTarget, targetName, trackedObstacles, cocoLabels, yoloSize) => {
   'worklet';
 
   if (!mostDangerousTarget) return "";
 
+  const firstBorder = yoloSize / 3;
+  const secondBorder = (yoloSize * 2) / 3;
+  const halfScreen = yoloSize / 2;
+
   const centerX = mostDangerousTarget.x + (mostDangerousTarget.width / 2);
   let direction = "Trực diện";
-  if (centerX < 212) direction = "Bên trái";
-  else if (centerX > 426) direction = "Bên phải";
+  if (centerX < firstBorder) direction = "Bên trái";
+  else if (centerX > secondBorder) direction = "Bên phải";
 
   const countInSameDirection = trackedObstacles.filter(obj => {
     const isSameName = cocoLabels[obj.labelIdx] === targetName; 
     const objCX = obj.x + (obj.width / 2);
     let objDir = "Trực diện";
-    if (objCX < 212) objDir = "Bên trái";
-    else if (objCX > 426) objDir = "Bên phải";
+    if (objCX < firstBorder) objDir = "Bên trái";
+    else if (objCX > secondBorder) objDir = "Bên phải";
     return isSameName && (objDir === direction);
   }).length;
 
   const hasSurroundingThreats = trackedObstacles.some(obj => {
     const cx = obj.x + (obj.width / 2);
     let dir = "Trực diện";
-    if (cx < 212) dir = "Bên trái";
-    else if (cx > 426) dir = "Bên phải";
+    if (cx < firstBorder) dir = "Bên trái";
+    else if (cx > secondBorder) dir = "Bên phải";
     const bottomY = obj.y + obj.height;
-    return (dir !== direction) && (bottomY > 320);
+    return (dir !== direction) && (bottomY > halfScreen);
   });
   
   let displayAlertName = "";

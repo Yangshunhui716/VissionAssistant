@@ -1,9 +1,11 @@
+const SEARCH_SCORE_THRESHOLD = 0.45;
+
 export const processSearch = (parsedDetections, searchTarget, cocoLabelsVi, maxFrames = 3) => {
   'worklet';
   globalThis.__searchFrameCount = (globalThis.__searchFrameCount || 0) + 1;
 
   const foundItem = parsedDetections.find(
-    item => cocoLabelsVi[item.labelIdx] === searchTarget && item.score > 0.45
+    item => cocoLabelsVi[item.labelIdx] === searchTarget && item.score > SEARCH_SCORE_THRESHOLD
   );
   
   if (foundItem) {

@@ -15,31 +15,35 @@ export const parseYoloOutput = (rawOutputs) => {
   const numAnchors = 8400; 
   const numClasses = 80; 
   const confidenceThreshold = 0.5;
-  const iouThreshold = 0.7; 
+  const iouThreshold = 0.7;
+
+  const maxScores = new Float32Array(numAnchors);
+  const bestClasses = new Int32Array(numAnchors);
+
+  for (let c = 0; c < numClasses; c++) {
+    const rowOffset = (4 + c) * numAnchors;
+    for (let i = 0; i < numAnchors; i++) {
+      const score = output[rowOffset + i];
+      if (score > maxScores[i]) {
+        maxScores[i] = score;
+        bestClasses[i] = c;
+      }
+    }
+  }
 
   const detections = [];
 
   for (let i = 0; i < numAnchors; i++) {
-    let maxScore = 0;
-    let classIdx = -1;
-    
-    for (let c = 0; c < numClasses; c++) {
-      const score = output[(4 + c) * numAnchors + i];
-      if (score > maxScore) {
-        maxScore = score;
-        classIdx = c;
-      }
-    }
-
-    if (maxScore > confidenceThreshold) {
+    const score = maxScores[i];
+    if (score > confidenceThreshold) {
       const cx = output[0 * numAnchors + i] * 640;
       const cy = output[1 * numAnchors + i] * 640;
       const w = output[2 * numAnchors + i] * 640;
       const h = output[3 * numAnchors + i] * 640;
 
       detections.push({
-        labelIdx: classIdx,
-        score: maxScore,
+        labelIdx: bestClasses[i],
+        score: score,
         x: cx - w / 2,
         y: cy - h / 2,
         width: w,
@@ -49,25 +53,25 @@ export const parseYoloOutput = (rawOutputs) => {
   }
 
   detections.sort((a, b) => b.score - a.score);
-
   const result = [];
-  while (detections.length > 0) {
-    const best = detections.shift();
-    if (!best) continue;
+  const suppressed = new Array(detections.length).fill(false);
+
+  for (let i = 0; i < detections.length; i++) {
+    if (suppressed[i]) continue;
+    
+    const best = detections[i];
     result.push(best);
 
-    for (let i = 0; i < detections.length; i++) {
-      const other = detections[i];
-      if (best.labelIdx === other.labelIdx && calculateIoU(best, other) > iouThreshold) {
-        detections.splice(i, 1);
-        i--;
+    for (let j = i + 1; j < detections.length; j++) {
+      if (!suppressed[j] && best.labelIdx === detections[j].labelIdx) {
+        if (calculateIoU(best, detections[j]) > iouThreshold) {
+          suppressed[j] = true;
+        }
       }
     }
   }
 
-  // 🔥 THÊM ĐOẠN CODE NÀY ĐỂ IN LOG RA CONSOLE
   if (result.length > 0) {
-    // Gom tất cả kết quả lại thành một chuỗi dễ đọc
     const logMessage = result.map(obj => 
       `- Lớp (Class ID): ${obj.labelIdx} | Độ tự tin: ${(obj.score * 100).toFixed(1)}% | Tọa độ: [x: ${obj.x.toFixed(0)}, y: ${obj.y.toFixed(0)}, w: ${obj.width.toFixed(0)}, h: ${obj.height.toFixed(0)}]`
     ).join('\n');

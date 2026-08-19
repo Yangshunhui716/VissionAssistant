@@ -3,17 +3,31 @@ import { Vibration } from 'react-native';
 import Tts from 'react-native-tts';
 
 
+const TTS_RATE = 0.5;
+
+const HEARTBEAT_TIMEOUT_MS = 6000;
+const HEARTBEAT_TICK_MS = 1000;
+const HEARTBEAT_VIBE_DURATION = 40;
+
+const PRIORITY_IDLE = 99;             
+const PRIORITY_DEFAULT = 3;
+const PRIORITY_INTERRUPT = 1;
+
+const HAPTIC_WAKE_UP = 100;
+const HAPTIC_SUCCESS = [0, 100, 100, 100];
+const HAPTIC_ERROR = 500;
+
 Tts.setDefaultLanguage('vi-VN');
-Tts.setDefaultRate(0.5); 
+Tts.setDefaultRate(TTS_RATE); 
 
 export const useFeedbackController = () => {
   const [uiTranscript, setUiTranscript] = useState("Đang chờ khởi tạo...");
-  const currentPriorityRef = useRef(99);
+  const currentPriorityRef = useRef(PRIORITY_IDLE);
   const lastActionTimeRef = useRef(Date.now());
 
   useEffect(() => {
-    const onFinish = () => { currentPriorityRef.current = 99; };
-    const onCancel = () => { currentPriorityRef.current = 99; };
+    const onFinish = () => { currentPriorityRef.current = PRIORITY_IDLE; };
+    const onCancel = () => { currentPriorityRef.current = PRIORITY_IDLE; };
 
     Tts.addEventListener('tts-finish', onFinish);
     Tts.addEventListener('tts-cancel', onCancel);
@@ -27,11 +41,11 @@ export const useFeedbackController = () => {
   useEffect(() => {
     const heartbeatInterval = setInterval(() => {
       const timeSinceLastAction = Date.now() - lastActionTimeRef.current;
-      if (timeSinceLastAction > 6000) {
-        Vibration.vibrate(40); 
+      if (timeSinceLastAction > HEARTBEAT_TIMEOUT_MS) {
+        Vibration.vibrate(HEARTBEAT_VIBE_DURATION); 
         lastActionTimeRef.current = Date.now(); 
       }
-    }, 1000);
+    }, HEARTBEAT_TICK_MS);
     return () => clearInterval(heartbeatInterval);
   }, []);
 
@@ -41,10 +55,10 @@ export const useFeedbackController = () => {
     }
 
     if (promptObj.tts) {
-      const incomingPriority = promptObj.priority || 3;
+      const incomingPriority = promptObj.priority || PRIORITY_DEFAULT;
 
       if (incomingPriority <= currentPriorityRef.current) {
-        if (incomingPriority === 1) Tts.stop();
+        if (incomingPriority === PRIORITY_INTERRUPT) Tts.stop();
 
         Tts.speak(promptObj.tts); 
         currentPriorityRef.current = incomingPriority;
@@ -57,9 +71,9 @@ export const useFeedbackController = () => {
   }, []);
 
   const haptics = useMemo(() => ({
-    wakeUp: () => { Vibration.vibrate(100); lastActionTimeRef.current = Date.now(); }, 
-    success: () => { Vibration.vibrate([0, 100, 100, 100]); lastActionTimeRef.current = Date.now(); }, 
-    error: () => { Vibration.vibrate(500); lastActionTimeRef.current = Date.now(); }, 
+    wakeUp: () => { Vibration.vibrate(HAPTIC_WAKE_UP); lastActionTimeRef.current = Date.now(); }, 
+    success: () => { Vibration.vibrate(HAPTIC_SUCCESS); lastActionTimeRef.current = Date.now(); }, 
+    error: () => { Vibration.vibrate(HAPTIC_ERROR); lastActionTimeRef.current = Date.now(); }, 
   }), []);
 
   return { uiTranscript, playFeedback, haptics };

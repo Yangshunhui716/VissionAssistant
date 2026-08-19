@@ -17,9 +17,17 @@ import { analyzeThreat } from '../utils/obstacleAnalyzer/threatAnalyzer';
 import { isCameraBlocked } from '../utils/frameProcessor/focusAnalyzer';
 
 
+const YOLO_SIZE = 640; 
+const YOLO_ANCHORS = 8400;
+const MIDAS_SIZE = 256;
+
+const PROCESS_DELAY_MS = 200;    
+const MIDAS_DELAY_MS = 2000;     
+const BLOCKED_WARN_MS = 6000;    
+
 const aiDelegates = (Platform.OS === 'ios') ? ['core-ml', 'metal'] : ['android-gpu'];
-const yoloBuffer = new Float32Array(640 * 640 * 3);
-const midasBuffer = new Float32Array(256 * 256 * 3);
+const yoloBuffer = new Float32Array(YOLO_SIZE * YOLO_SIZE * 3);
+const midasBuffer = new Float32Array(MIDAS_SIZE * MIDAS_SIZE * 3);
 let lastRealDepth = 0;
 let lastRealArea = 0;
 let lastTargetName = '';
@@ -117,7 +125,7 @@ export const useVision = (searchTarget, onSearchComplete, isScanningGeneral, onG
           }
           globalThis.__lastBlockedWarnTime = 0;
           
-          if (!globalThis.__lastProcessTime || now - globalThis.__lastProcessTime > 200) {
+          if (!globalThis.__lastProcessTime || now - globalThis.__lastProcessTime > PROCESS_DELAY_MS) {
             globalThis.__lastProcessTime = now;
             const resizeStart = Date.now();
 
@@ -135,11 +143,12 @@ export const useVision = (searchTarget, onSearchComplete, isScanningGeneral, onG
             //   'ms'
             // );
 
+            const yoloResized = resize(frameData, frame.width, frame.height, YOLO_SIZE, YOLO_SIZE, frame.bytesPerRow, yoloBuffer, 'CHW');
             const yoloOutputs = yoloModel.model.runSync([yoloResized.buffer]);
-            const parsed = parseYoloOutput(yoloOutputs);
+            const parsed = parseYoloOutput(yoloOutputs, YOLO_SIZE, YOLO_ANCHORS);
 
             if (isScanningGeneral) {
-              const scanProcess = processGeneralScan(parsed, COCO_LABELS_VI, 5);
+              const scanProcess = processGeneralScan(parsed, COCO_LABELS_VI, YOLO_SIZE, 5);
               if (scanProcess.status === 'DONE') {
                  scheduleOnRN(onGeneralScanComplete, scanProcess.result);
               }
@@ -147,7 +156,7 @@ export const useVision = (searchTarget, onSearchComplete, isScanningGeneral, onG
               resetGeneralScan(); 
             }
 
-            const trackedObstacles = updateTracks(parsed, now, COCO_LABELS_VI, OBSTACLE_WHITELIST);
+            const trackedObstacles = updateTracks(parsed, now, COCO_LABELS_VI, OBSTACLE_WHITELIST, YOLO_SIZE);
             if (trackedObstacles.length > 0) {
               const currentNames = trackedObstacles.map(obj => COCO_LABELS_VI[obj.labelIdx]);
               scheduleOnRN(updateList, [...new Set(currentNames)]);
@@ -155,28 +164,30 @@ export const useVision = (searchTarget, onSearchComplete, isScanningGeneral, onG
               scheduleOnRN(updateList, []);
             }
 
-            const { mostDangerousTarget, targetName } = gridWeighting(trackedObstacles, COCO_LABELS_VI);
+            const { mostDangerousTarget, targetName } = gridWeighting(trackedObstacles, COCO_LABELS_VI, YOLO_SIZE);
             const motionState = mostDangerousTarget ? mostDangerousTarget.motion : "Tĩnh";
 
             let currentDepthMap = globalThis.__lastDepthMap; 
             if (mostDangerousTarget) {
               const currentArea = mostDangerousTarget.width * mostDangerousTarget.height;
-              const displayAlertName = analyzeThreat(mostDangerousTarget, targetName, trackedObstacles, COCO_LABELS_VI);
+              const displayAlertName = analyzeThreat(mostDangerousTarget, targetName, trackedObstacles, COCO_LABELS_VI, YOLO_SIZE);
+              
               const timeSinceLastMidas = now - (globalThis.__lastMidasTime || 0);
               const isNewTarget = targetName !== globalThis.__lastTargetName;
               let rawDepth = null;
-              if (timeSinceLastMidas > 2000 || (isNewTarget && timeSinceLastMidas > 500)) {
+              
+              if (timeSinceLastMidas > MIDAS_DELAY_MS || (isNewTarget && timeSinceLastMidas > 500)) {
                 globalThis.__lastMidasTime = now;
                 globalThis.__lastTargetName = targetName;
 
-                const midasResized = resize(frameData, frame.width, frame.height, 256, 256, frame.bytesPerRow, midasBuffer, 'HWC');
+                const midasResized = resize(frameData, frame.width, frame.height, MIDAS_SIZE, MIDAS_SIZE, frame.bytesPerRow, midasBuffer, 'HWC');
                 if (midasModel.model) {
                   const midasOutputs = midasModel.model.runSync([midasResized.buffer]);
                   currentDepthMap = new Float32Array(midasOutputs[0]); 
                   globalThis.__lastDepthMap = currentDepthMap;
                    
                   if (currentDepthMap) {
-                    rawDepth = getDepthFromMidas(mostDangerousTarget, currentDepthMap);
+                    rawDepth = getDepthFromMidas(mostDangerousTarget, currentDepthMap, YOLO_SIZE, MIDAS_SIZE);
                   }
                   scheduleOnRN(updateAlert, targetName, displayAlertName, rawDepth, motionState, currentArea);
                 }
@@ -188,7 +199,7 @@ export const useVision = (searchTarget, onSearchComplete, isScanningGeneral, onG
             if (searchTarget) {
               const searchResult = processSearch(parsed, searchTarget, COCO_LABELS_VI, 5);
               if (searchResult.status === 'FOUND') {
-                const spatialMessage = analyzeSpatialObject(searchResult.item, searchTarget, currentDepthMap);
+                const spatialMessage = analyzeSpatialObject(searchResult.item, searchTarget, currentDepthMap, YOLO_SIZE, MIDAS_SIZE);
                 scheduleOnRN(onSearchComplete, true, spatialMessage);
               }
               else if (searchResult.status === 'NOT_FOUND') {

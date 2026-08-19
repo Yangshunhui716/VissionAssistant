@@ -1,3 +1,7 @@
+const NUM_CLASSES = 80;
+const CONFIDENCE_THRESHOLD = 0.5;
+const IOU_THRESHOLD = 0.7;
+
 const calculateIoU = (a, b) => {
   'worklet';
   const interX = Math.max(0, Math.min(a.x + a.width, b.x + b.width) - Math.max(a.x, b.x));
@@ -8,19 +12,14 @@ const calculateIoU = (a, b) => {
   return intersection / (areaA + areaB - intersection);
 };
 
-export const parseYoloOutput = (rawOutputs) => {
+export const parseYoloOutput = (rawOutputs, yoloSize, numAnchors) => {
   'worklet';
   
   const output = new Float32Array(rawOutputs[0]);
-  const numAnchors = 8400; 
-  const numClasses = 80; 
-  const confidenceThreshold = 0.5;
-  const iouThreshold = 0.7;
-
   const maxScores = new Float32Array(numAnchors);
   const bestClasses = new Int32Array(numAnchors);
 
-  for (let c = 0; c < numClasses; c++) {
+  for (let c = 0; c < NUM_CLASSES; c++) {
     const rowOffset = (4 + c) * numAnchors;
     for (let i = 0; i < numAnchors; i++) {
       const score = output[rowOffset + i];
@@ -35,11 +34,11 @@ export const parseYoloOutput = (rawOutputs) => {
 
   for (let i = 0; i < numAnchors; i++) {
     const score = maxScores[i];
-    if (score > confidenceThreshold) {
-      const cx = output[0 * numAnchors + i] * 640;
-      const cy = output[1 * numAnchors + i] * 640;
-      const w = output[2 * numAnchors + i] * 640;
-      const h = output[3 * numAnchors + i] * 640;
+    if (score > CONFIDENCE_THRESHOLD) {
+      const cx = output[0 * numAnchors + i] * yoloSize;
+      const cy = output[1 * numAnchors + i] * yoloSize;
+      const w = output[2 * numAnchors + i] * yoloSize;
+      const h = output[3 * numAnchors + i] * yoloSize;
 
       detections.push({
         labelIdx: bestClasses[i],
@@ -64,7 +63,7 @@ export const parseYoloOutput = (rawOutputs) => {
 
     for (let j = i + 1; j < detections.length; j++) {
       if (!suppressed[j] && best.labelIdx === detections[j].labelIdx) {
-        if (calculateIoU(best, detections[j]) > iouThreshold) {
+        if (calculateIoU(best, detections[j]) > IOU_THRESHOLD) {
           suppressed[j] = true;
         }
       }

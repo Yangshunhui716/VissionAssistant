@@ -1,4 +1,3 @@
-const FRAME_SIZE = 640;
 const IOU_MATCH = 0.3;
 const CONFIRM_HITS = 2;
 const MAX_MISSES = 3;
@@ -6,7 +5,8 @@ const HISTORY_LEN = 5;
 const STALE_MS = 2000;
 const EMERGENCY_AREA_RATIO = 0.30;
 const GROWTH_RATIO = 1.15;
-const CROSS_MOVE = FRAME_SIZE * 0.09;
+const CROSS_MOVE_RATIO = 0.09;
+const MIN_MOTION_FRAMES = 3;
 
 const iou = (a, b) => {
   'worklet';
@@ -26,9 +26,9 @@ const pushHistory = (tr) => {
   if (tr.history.length > HISTORY_LEN) tr.history.shift();
 };
 
-const computeMotion = (tr) => {
+const computeMotion = (tr, yoloSize) => {
   'worklet';
-  if (tr.history.length < 3) return 'Tĩnh';
+  if (tr.history.length < MIN_MOTION_FRAMES) return 'Tĩnh';
 
   const first = tr.history[0];
   const last = tr.history[tr.history.length - 1];
@@ -38,14 +38,16 @@ const computeMotion = (tr) => {
   }
 
   const moveX = last.cx - first.cx;
-  if (Math.abs(moveX) > CROSS_MOVE) {
+  const dynamicCrossMove = yoloSize * CROSS_MOVE_RATIO;
+  
+  if (Math.abs(moveX) > dynamicCrossMove) {
     return moveX > 0 ? 'Cắt ngang sang phải' : 'Cắt ngang sang trái';
   }
 
   return 'Tĩnh';
 };
 
-export const updateTracks = (detections, now, cocoLabelsVi, whitelist) => {
+export const updateTracks = (detections, now, cocoLabelsVi, whitelist, yoloSize) => {
   'worklet';
 
   const g = globalThis;
@@ -57,7 +59,7 @@ export const updateTracks = (detections, now, cocoLabelsVi, whitelist) => {
   g.__tracksTime = now;
 
   const tracks = g.__tracks;
-  const frameArea = FRAME_SIZE * FRAME_SIZE;
+  const frameArea = yoloSize * yoloSize;
 
   const pairs = [];
   for (let t = 0; t < tracks.length; t++) {
@@ -132,7 +134,7 @@ export const updateTracks = (detections, now, cocoLabelsVi, whitelist) => {
     if (tr.hits < CONFIRM_HITS && !isEmergency) continue;
 
     tr.isEmergency = isEmergency;
-    tr.motion = computeMotion(tr);
+    tr.motion = computeMotion(tr, yoloSize);
     
     result.push(tr);
   }

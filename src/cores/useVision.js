@@ -107,11 +107,15 @@ export const useVision = (searchTarget, onSearchComplete, isScanningGeneral, onG
             return;
           }
 
+          const bufferStart = Date.now();
+
           const frameData = new Uint8Array(frame.getPixelBuffer());
+          
+          const bufferTime = Date.now() - bufferStart;
 
           const isBlocked = isCameraBlocked(frameData, frame.width, frame.height);
           if (isBlocked) {
-            if (now - (globalThis.__lastBlockedWarnTime || 0) > BLOCKED_WARN_MS) {
+            if (now - (globalThis.__lastBlockedWarnTime || 0) > 6000) {
               globalThis.__lastBlockedWarnTime = now;
               scheduleOnRN(onOutFocusDetected);
             }
@@ -123,6 +127,21 @@ export const useVision = (searchTarget, onSearchComplete, isScanningGeneral, onG
           
           if (!globalThis.__lastProcessTime || now - globalThis.__lastProcessTime > PROCESS_DELAY_MS) {
             globalThis.__lastProcessTime = now;
+            const resizeStart = Date.now();
+
+            const yoloResized = resize(frameData, frame.width, frame.height, 640, 640, frame.bytesPerRow, yoloBuffer, 'CHW');
+            
+            const resizeTime = Date.now() - resizeStart;
+
+            // console.log(
+            //   '[VISION BENCH]',
+            //   'buffer =',
+            //   bufferTime,
+            //   'ms',
+            //   '| resize =',
+            //   resizeTime,
+            //   'ms'
+            // );
 
             const yoloResized = resize(frameData, frame.width, frame.height, YOLO_SIZE, YOLO_SIZE, frame.bytesPerRow, yoloBuffer, 'CHW');
             const yoloOutputs = yoloModel.model.runSync([yoloResized.buffer]);

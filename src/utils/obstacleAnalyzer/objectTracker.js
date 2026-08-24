@@ -1,27 +1,21 @@
-const IOU_MATCH = 0.3;
+import { calculateIoU, getBoxCenters } from '../spatialProcessor/geometryUtils'
+
+const IOU_MATCH = 0.2;
 const CONFIRM_HITS = 2;
 const MAX_MISSES = 3;
 const HISTORY_LEN = 5;
 const STALE_MS = 2000;
-const EMERGENCY_AREA_RATIO = 0.30;
+const EMERGENCY_AREA_RATIO = 0.15;
 const GROWTH_RATIO = 1.15;
 const CROSS_MOVE_RATIO = 0.09;
-const MIN_MOTION_FRAMES = 3;
+const MIN_MOTION_FRAMES = 2;
 
-const iou = (a, b) => {
-  'worklet';
-  const interX = Math.max(0, Math.min(a.x + a.width, b.x + b.width) - Math.max(a.x, b.x));
-  const interY = Math.max(0, Math.min(a.y + a.height, b.y + b.height) - Math.max(a.y, b.y));
-  const inter = interX * interY;
-  const union = a.width * a.height + b.width * b.height - inter;
-  return union > 0 ? inter / union : 0;
-};
 
 const pushHistory = (tr) => {
   'worklet';
   tr.history.push({
     area: tr.width * tr.height,
-    cx: tr.x + tr.width / 2,
+    cx: getBoxCenters(tr).cx,
   });
   if (tr.history.length > HISTORY_LEN) tr.history.shift();
 };
@@ -50,22 +44,20 @@ const computeMotion = (tr, yoloSize) => {
 export const updateTracks = (detections, now, cocoLabelsVi, whitelist, yoloSize) => {
   'worklet';
 
-  const g = globalThis;
-
-  if (!g.__tracks || now - (g.__tracksTime || 0) > STALE_MS) {
-    g.__tracks = [];
-    g.__trackSeq = 0;
+  if (!globalThis.__tracks || now - (globalThis.__tracksTime || 0) > STALE_MS) {
+    globalThis.__tracks = [];
+    globalThis.__trackSeq = 0;
   }
-  g.__tracksTime = now;
+  globalThis.__tracksTime = now;
 
-  const tracks = g.__tracks;
+  const tracks = globalThis.__tracks;
   const frameArea = yoloSize * yoloSize;
 
   const pairs = [];
   for (let t = 0; t < tracks.length; t++) {
     for (let d = 0; d < detections.length; d++) {
       if (tracks[t].labelIdx !== detections[d].labelIdx) continue;
-      const s = iou(tracks[t], detections[d]);
+      const s = calculateIoU(tracks[t], detections[d]);
       if (s >= IOU_MATCH) pairs.push({ t: t, d: d, s: s });
     }
   }
@@ -102,7 +94,7 @@ export const updateTracks = (detections, now, cocoLabelsVi, whitelist, yoloSize)
     if (usedDet[d]) continue;
     const det = detections[d];
     const tr = {
-      id: ++g.__trackSeq,
+      id: ++globalThis.__trackSeq,
       labelIdx: det.labelIdx,
       x: det.x,
       y: det.y,

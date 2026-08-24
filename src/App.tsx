@@ -1,11 +1,11 @@
 import { useEffect, useCallback } from 'react';
-import { StyleSheet, TouchableOpacity } from 'react-native';
+import { StyleSheet, TouchableOpacity, View, Image } from 'react-native';
 import { Camera, useCameraDevice, useCameraPermission, useMicrophonePermission } from 'react-native-vision-camera';
 import { useSharedValue } from 'react-native-reanimated';
 
 import { useFeedbackController } from './cores/useFeedbackController';
 import { useVoiceCommand } from './cores/useVoiceCommand';
-import { useVision } from './cores/useVision';
+import { useVision, IS_DEBUG } from './cores/useVision';
 
 import { UIOverlay } from './components/UIOverlay';
 import { StatusScreen } from './components/StatusScreen';
@@ -23,17 +23,14 @@ const App = () => {
   const { appState, targetToFind, isScanningGeneral, setTargetToFind, setIsScanningGeneral, 
     manualWakeUp, manualStop  } = useVoiceCommand(hasMicPermission, playFeedback, haptics);
 
-
   const handleSearchComplete = useCallback((isFound: boolean, spatialMessage: string) => {
     setTargetToFind(null); 
     if (isFound) {
-      haptics.success();
       playFeedback(PROMPTS.search.found(spatialMessage));
     } else {
       playFeedback(PROMPTS.search.notFound(spatialMessage));
     }
   }, [playFeedback, haptics, setTargetToFind]);
-
 
   const handleGeneralScanComplete = useCallback((foundItems: string[]) => {
     setIsScanningGeneral(false); 
@@ -44,19 +41,17 @@ const App = () => {
     }
   }, [playFeedback, setIsScanningGeneral]);
 
-
   const handleThreatDetected = useCallback((threatMessage: string) => {
     haptics.error();
     playFeedback(PROMPTS.alert.threat(threatMessage));
   }, [playFeedback, haptics]);
-
 
   const handleFocusLost = useCallback(() => {
     haptics.error();
     playFeedback(PROMPTS.alert.outFocus);
   }, [playFeedback, haptics]);
 
-  const { frameOutput, fps, objectList, detectedObj, isModelsLoaded } = useVision(targetToFind, 
+  const { frameOutput, fps, objectList, detectedObj, isModelsLoaded, debugImage } = useVision(targetToFind, 
     handleSearchComplete, isScanningGeneral, handleGeneralScanComplete, handleThreatDetected, 
     handleFocusLost, isShaking
   );
@@ -83,15 +78,28 @@ const App = () => {
       onLongPress={() => { if (appState === 'SLEEP') manualWakeUp(); }}
       onPress={() => { if (appState === 'LISTENING') manualStop(); }}
     >
-      <Camera 
-        style={StyleSheet.absoluteFill} 
-        device={camera} 
-        isActive={true} 
-        outputs={[frameOutput]} 
-      />
+      <View style={{ flex: 1 }}>
+        <Camera 
+          style={StyleSheet.absoluteFill} 
+          device={camera} 
+          isActive={true}
+          outputs={[frameOutput]} 
+          resizeMode='contain'
+        />
+        <View style={{ position: 'absolute', bottom: 100, right: 20, zIndex: 999, alignItems: 'flex-end' }}>
+          {debugImage && (
+            <Image 
+              source={{ uri: debugImage }} 
+              style={{ width: 150, height: 150, borderWidth: 3, borderColor: 'lime', marginBottom: 10 }}
+              resizeMode="contain"
+            />
+          )}
+        </View>
+      </View>
+
       <UIOverlay 
-        fps={fps} 
-        objectList={objectList} 
+        fps={IS_DEBUG ? fps : null}
+        objectList={IS_DEBUG ? objectList : []}
         detectedObj={detectedObj} 
         appState={appState} 
         transcript={uiTranscript} 

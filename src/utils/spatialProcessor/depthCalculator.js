@@ -1,10 +1,10 @@
-export const getDepthFromMidas = (yoloBox, depthMap) => {
+export const getDepthFromMidas = (yoloBox, depthMap, yoloSize, midasSize) => {
   'worklet';
 
-  const midasX = Math.max(0, Math.floor((yoloBox.x / 640) * 256));
-  const midasY = Math.max(0, Math.floor((yoloBox.y / 640) * 256));
-  const midasW = Math.min(256 - midasX, Math.floor((yoloBox.width / 640) * 256));
-  const midasH = Math.min(256 - midasY, Math.floor((yoloBox.height / 640) * 256));
+  const midasX = Math.max(0, Math.floor((yoloBox.x / yoloSize) * midasSize));
+  const midasY = Math.max(0, Math.floor((yoloBox.y / yoloSize) * midasSize));
+  const midasW = Math.min(midasSize - midasX, Math.floor((yoloBox.width / yoloSize) * midasSize));
+  const midasH = Math.min(midasSize - midasY, Math.floor((yoloBox.height / yoloSize) * midasSize));
 
   const coreX = midasX + Math.floor(midasW * 0.25);
   const coreY = midasY + Math.floor(midasH * 0.4);
@@ -17,8 +17,8 @@ export const getDepthFromMidas = (yoloBox, depthMap) => {
 
   for (let y = coreY; y < coreY + coreH; y++) {
     for (let x = coreX; x < coreX + coreW; x++) {
-      if (x >= 0 && x < 256 && y >= 0 && y < 256) {
-        const index = (y * 256) + x;
+      if (x >= 0 && x < midasSize && y >= 0 && y < midasSize) {
+        const index = (y * midasSize) + x;
         const d = depthMap[index];
         
         if (d > maxRawDepth) maxRawDepth = d;
@@ -29,9 +29,7 @@ export const getDepthFromMidas = (yoloBox, depthMap) => {
   }
 
   const avgDepth = count > 0 ? (sumDepth / count) : 0;
-  const finalRaw = (maxRawDepth * 0.7) + (avgDepth * 0.3);
-
-  return finalRaw;
+  return (maxRawDepth * 0.7) + (avgDepth * 0.3);
 };
 
 export const translateDepthToText = (rawVal) => {

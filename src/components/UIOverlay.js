@@ -4,10 +4,11 @@ import { View, Text, StyleSheet } from 'react-native';
 export const UIOverlay = ({ fps, objectList, detectedObj, appState, transcript }) => {
   return (
     <>
-      <View style={styles.fpsOverlay}>
-        <Text style={styles.fpsText}>FPS: {fps}</Text>
-      </View>
-      
+      {fps ? 
+        <View style={styles.fpsOverlay}>
+          <Text style={styles.fpsText}>FPS: {fps}</Text>
+        </View>:<></>
+      }  
       <View style={styles.alertBox}>
         <Text style={styles.alertTitle}>PHÁT HIỆN: {detectedObj.name.toUpperCase()}</Text>
         <Text style={styles.alertDepth}>Chỉ số: {detectedObj.depth}</Text>

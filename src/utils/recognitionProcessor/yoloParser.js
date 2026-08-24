@@ -1,18 +1,10 @@
+import { calculateIoU } from "../spatialProcessor/geometryUtils"
+
 const NUM_CLASSES = 80;
 const CONFIDENCE_THRESHOLD = 0.5;
 const IOU_THRESHOLD = 0.7;
 
-const calculateIoU = (a, b) => {
-  'worklet';
-  const interX = Math.max(0, Math.min(a.x + a.width, b.x + b.width) - Math.max(a.x, b.x));
-  const interY = Math.max(0, Math.min(a.y + a.height, b.y + b.height) - Math.max(a.y, b.y));
-  const intersection = interX * interY;
-  const areaA = a.width * a.height;
-  const areaB = b.width * b.height;
-  return intersection / (areaA + areaB - intersection);
-};
-
-export const parseYoloOutput = (rawOutputs, yoloSize, numAnchors) => {
+export const parseYoloOutput = (rawOutputs, yoloSize, numAnchors, isDebug = false) => {
   'worklet';
   
   const output = new Float32Array(rawOutputs[0]);
@@ -70,7 +62,7 @@ export const parseYoloOutput = (rawOutputs, yoloSize, numAnchors) => {
     }
   }
 
-  if (result.length > 0) {
+  if (isDebug && result.length > 0) {
     const logMessage = result.map(obj => 
       `- Lớp (Class ID): ${obj.labelIdx} | Độ tự tin: ${(obj.score * 100).toFixed(1)}% | Tọa độ: [x: ${obj.x.toFixed(0)}, y: ${obj.y.toFixed(0)}, w: ${obj.width.toFixed(0)}, h: ${obj.height.toFixed(0)}]`
     ).join('\n');

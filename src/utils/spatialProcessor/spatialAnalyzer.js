@@ -1,24 +1,30 @@
 import { getDepthFromMidas, translateDepthToText } from './depthCalculator';
+import { getBoxCenters } from './geometryUtils';
 
+export const getDirection = (box, bounds) => {
+  'worklet';
+  const { cx } = getBoxCenters(box);
+  const leftBorder = bounds.padX + (bounds.newW / 3);
+  const rightBorder = bounds.padX + ((bounds.newW * 2) / 3);
 
-const LEFT_BORDER_RATIO = 0.35; 
-const RIGHT_BORDER_RATIO = 0.65;
+  if (cx < leftBorder) return "bên trái";
+  if (cx > rightBorder) return "bên phải";
+  return "trực diện";
+};
 
 export const analyzeSpatialObject = (obj, name, depthMap, yoloSize, midasSize) => {
   'worklet';
-  if (!depthMap) return name;
+
+  const yoloBounds = { padX: 0, newW: yoloSize };
+  const baseDir = getDirection(obj, yoloBounds);
+  const positionText = baseDir === "trực diện" ? "ngay phía trước" : `nằm ${baseDir}`;
+
+  if (!depthMap) {
+    return `${name} ${positionText}`;
+  }
 
   const rawDepth = getDepthFromMidas(obj, depthMap, yoloSize, midasSize);
   const distanceText = translateDepthToText(rawDepth).toLowerCase();
-
-  const xCenter = obj.x + (obj.width / 2);
-  let positionText = "ngay phía trước";
-  
-  if (xCenter < yoloSize * LEFT_BORDER_RATIO) {
-    positionText = "nằm bên trái";
-  } else if (xCenter > yoloSize * RIGHT_BORDER_RATIO) {
-    positionText = "nằm bên phải";
-  }
 
   return `${name} ${positionText}, cách ${distanceText}`;
 };

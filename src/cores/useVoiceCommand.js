@@ -4,6 +4,7 @@ import { COMMAND_GRAMMAR, WAKE_GRAMMAR } from '../utils/languageProcessor/gramma
 import { analyzeCommand } from '../utils/languageProcessor/intentAnalyzer';
 import { PROMPTS } from '../utils/languageProcessor/feedbackPrompts';
 
+const IS_DEBUG = true; 
 
 const MODEL_SWITCH_DELAY_MS = 600;
 const SILENCE_TIMEOUT_MS = 1500;
@@ -65,15 +66,19 @@ export const useVoiceCommand = (hasMicPermission, playFeedback, haptics) => {
 
   const finalizeCommand = async (finalText) => {
     if (isSwitching.current) return;
+    isSwitching.current = true;
     await vosk.stop(); 
-    console.log(">> LỆNH ĐÃ CHỐT:", finalText);
+    
+    if (IS_DEBUG) console.log(">> LỆNH ĐÃ CHỐT:", finalText);
     const { intent, targetName } = analyzeCommand(finalText);
 
     if (intent === 'FIND') {
+      setIsScanningGeneral(false);
       setTargetToFind(targetName);
       playFeedback(PROMPTS.search.start(targetName));
     } 
     else if (intent === 'SCAN_GENERAL') {
+      setTargetToFind(null);
       setIsScanningGeneral(true);
       playFeedback(PROMPTS.scan.start);
     } 
@@ -97,7 +102,8 @@ export const useVoiceCommand = (hasMicPermission, playFeedback, haptics) => {
       if (isSwitching.current) return;
       const text = (res || "").toString().toLowerCase().trim();
       if (!text) return;
-      console.log(">> KẾT QUẢ VOSK:", text);
+      
+      if (IS_DEBUG) console.log(">> KẾT QUẢ VOSK:", text);
 
       if (stateRef.current === 'SLEEP') {
         if (text.match(/(xin chào|trợ lý)/)) switchToListening();

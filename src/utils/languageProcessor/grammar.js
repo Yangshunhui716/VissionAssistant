@@ -8,7 +8,7 @@ export const ALIAS_MAP = {
   "xe gắn máy": "xe máy",
   "xe honda": "xe máy",
   "xe hơi": "xe ô tô",
-  "bốn bánh": " xe ô tô"
+  "bốn bánh": "xe ô tô"
 };
 
 export const WAKE_GRAMMAR = [

@@ -1,7 +1,8 @@
 import Fuse from 'fuse.js';
 import { COCO_LABELS_VI } from '../recognitionProcessor/labels';
-import { ALIAS_MAP } from '../languageProcessor/grammar';
+import { ALIAS_MAP } from './grammar';
 
+const IS_DEBUG = true;
 
 const NGRAM_MAX_WORDS = 3;
 const INTENT_FUSE_THRESH = 0.3;
@@ -47,25 +48,33 @@ export const analyzeCommand = (rawText) => {
     const regex = new RegExp(`\\b${alias}\\b`, 'g');
     text = text.replace(regex, ALIAS_MAP[alias]);
   });
-  console.log("[NÃO BỘ] Đã nắn ngọng:", text);
+  
+  if (IS_DEBUG) console.log("[NÃO BỘ] Đã nắn ngọng:", text);
 
-  const chunks = getNGrams(text).sort((a, b) => b.length - a.length);
   let detectedIntent = null;
 
-  for (const chunk of chunks) {
-    const intentResults = intentFuse.search(chunk);
-    if (intentResults.length > 0 && intentResults[0].score <= INTENT_ACCEPT_SCORE) {
-      detectedIntent = intentResults[0].item.intent; 
-      break;
+  if (text.includes('tìm') || text.includes('kiếm') || text.includes('ở đâu')) {
+    detectedIntent = 'FIND';
+  } 
+  else if (text.includes('có gì') || text.includes('nhận diện') || text.includes('quét') || text.includes('phía trước')) {
+    detectedIntent = 'SCAN_GENERAL';
+  } 
+  else {
+    const chunks = getNGrams(text).sort((a, b) => b.length - a.length);
+    for (const chunk of chunks) {
+      const intentResults = intentFuse.search(chunk);
+      if (intentResults.length > 0 && intentResults[0].score <= INTENT_ACCEPT_SCORE) {
+        detectedIntent = intentResults[0].item.intent; 
+        break;
+      }
     }
   }
-  
-  if (!detectedIntent && (text.includes('tìm') || text.includes('kiếm'))) detectedIntent = 'FIND';
 
   if (detectedIntent === 'FIND') {
     let bestMatchName = null;
     let bestScore = 1;
 
+    const chunks = getNGrams(text).sort((a, b) => b.length - a.length);
     const prioritizedChunks = [
       ...chunks.filter(c => c.includes(' ') && c.length >= MIN_CHAR_MATCH), 
       ...chunks.filter(c => !c.includes(' ') && c.length >= MIN_CHAR_MATCH)

@@ -1,6 +1,6 @@
 const GRID = 3;
 const STEP = 20;
-const VARIANCE_THRESHOLD = 49; 
+const VARIANCE_THRESHOLD = 49;
 const BLOCKED_THRESHOLD = 5;
 
 export const isCameraBlocked = (buffer, width, height, bytesPerRow) => {
@@ -33,7 +33,8 @@ export const isCameraBlocked = (buffer, width, height, bytesPerRow) => {
           if (index + 2 >= buffer.length) {
             continue;
           }
-          const value = (buffer[index] + buffer[index + 1] + buffer[index + 2]) / 3;
+          const value =
+            (buffer[index] + buffer[index + 1] + buffer[index + 2]) / 3;
           sum += value;
           sumSq += value * value;
           count++;

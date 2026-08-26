@@ -41,7 +41,7 @@ const computeMotion = (tr, yoloSize) => {
   return 'Tĩnh';
 };
 
-export const updateTracks = (detections, now, cocoLabelsVi, whitelist, yoloSize) => {
+export const updateTracks = (detections, now, labelsVi, whitelist, yoloSize) => {
   'worklet';
 
   if (!globalThis.__tracks || now - (globalThis.__tracksTime || 0) > STALE_MS) {
@@ -63,8 +63,8 @@ export const updateTracks = (detections, now, cocoLabelsVi, whitelist, yoloSize)
   }
   pairs.sort((a, b) => b.s - a.s);
 
-  const usedTrack = {};
-  const usedDet = {};
+  const usedTrack = new Array(tracks.length).fill(false);
+  const usedDet = new Array(detections.length).fill(false);
 
   for (let i = 0; i < pairs.length; i++) {
     const p = pairs[i];
@@ -119,9 +119,8 @@ export const updateTracks = (detections, now, cocoLabelsVi, whitelist, yoloSize)
 
     const areaRatio = (tr.width * tr.height) / frameArea;
     const isEmergency = areaRatio > EMERGENCY_AREA_RATIO;
-    const name = cocoLabelsVi[tr.labelIdx];
 
-    if (whitelist.indexOf(name) === -1) continue;
+    if (whitelist.indexOf(tr.labelIdx) === -1) continue;
 
     if (tr.hits < CONFIRM_HITS && !isEmergency) continue;
 

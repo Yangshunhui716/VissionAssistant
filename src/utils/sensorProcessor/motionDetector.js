@@ -1,5 +1,8 @@
-import { accelerometer, setUpdateIntervalForType, SensorTypes } from 'react-native-sensors';
-
+import {
+  accelerometer,
+  setUpdateIntervalForType,
+  SensorTypes,
+} from 'react-native-sensors';
 
 const UPDATE_INTERVAL_MS = 100;
 const GRAVITY_CONSTANT = 9.81;
@@ -22,10 +25,13 @@ export const startMotionGuard = (onMotionStateChange, onShakeWarning) => {
 
     if (movementForce > SHAKE_FORCE_THRESHOLD) {
       if (onMotionStateChange) onMotionStateChange(true);
-      shakyTime += UPDATE_INTERVAL_MS; 
-      
+      shakyTime += UPDATE_INTERVAL_MS;
+
       const now = Date.now();
-      if (shakyTime > SHAKE_DURATION_TRIGGER && now - lastWarnTime > WARN_COOLDOWN_MS) {
+      if (
+        shakyTime > SHAKE_DURATION_TRIGGER &&
+        now - lastWarnTime > WARN_COOLDOWN_MS
+      ) {
         if (onShakeWarning) onShakeWarning();
         lastWarnTime = now;
         shakyTime = 0;
@@ -35,14 +41,14 @@ export const startMotionGuard = (onMotionStateChange, onShakeWarning) => {
       shakyTime = 0;
     }
   });
-  
-  console.log("[TIỀN ĐÌNH] Đã kích hoạt cảm biến chống nhòe ảnh.");
+
+  console.log('[TIỀN ĐÌNH] Đã kích hoạt cảm biến chống nhòe ảnh.');
 };
 
 export const stopMotionGuard = () => {
   if (subscription) {
     subscription.unsubscribe();
     subscription = null;
-    console.log("[TIỀN ĐÌNH] Đã tắt cảm biến.");
+    console.log('[TIỀN ĐÌNH] Đã tắt cảm biến.');
   }
 };

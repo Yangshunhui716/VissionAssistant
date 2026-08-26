@@ -1,10 +1,30 @@
-import { OpenCV, Mat, DataTypes, BorderTypes, InterpolationFlags,
-  RotateFlags, ColorConversionCodes, Size, Scalar } from 'react-native-fast-opencv';
+import {
+  OpenCV,
+  Mat, MatVector,
+  DataTypes,
+  BorderTypes,
+  InterpolationFlags,
+  RotateFlags,
+  ColorConversionCodes,
+  Size,
+  Scalar,
+} from 'react-native-fast-opencv';
 
-export function resize(srcPixels, srcWidth, srcHeight, dstWidth, dstHeight, outputBuffer, format = 'CHW', orientation = 'portrait', isMirrored = false) {
+export function resize(
+  srcPixels,
+  srcWidth,
+  srcHeight,
+  dstWidth,
+  dstHeight,
+  outputBuffer,
+  format = 'CHW',
+  orientation = 'portrait',
+  isMirrored = false,
+) {
   'worklet';
 
   const dst = outputBuffer;
+
   if (!srcPixels || srcWidth <= 0 || srcHeight <= 0) {
     return dst;
   }
@@ -12,24 +32,31 @@ export function resize(srcPixels, srcWidth, srcHeight, dstWidth, dstHeight, outp
   let rgba = null;
   let rgb = null;
   let oriented = null;
-  let mirrored = null;
   let resized = null;
   let letterboxed = null;
-  let borderValue = null;
   let resizeSize = null;
+  let borderValue = null;
 
   try {
-    rgba = Mat.createFromVisionCameraFrameBuffer(srcHeight, srcWidth, 4, srcPixels);
+    rgba = Mat.createFromVisionCameraFrameBuffer(
+      srcHeight,
+      srcWidth,
+      4,
+      srcPixels,
+    );
 
     rgb = Mat.create(0, 0, DataTypes.CV_8UC3);
+
     OpenCV.cvtColor(rgba, rgb, ColorConversionCodes.COLOR_RGBA2RGB);
+
     rgba.release();
     rgba = null;
-
     oriented = rgb;
+
     const ori = String(orientation || 'portrait').toLowerCase();
 
     let rotateCode = -1;
+
     if (ori === 'left' || ori === 'landscape-left') {
       rotateCode = RotateFlags.ROTATE_90_CLOCKWISE;
     } else if (ori === 'right' || ori === 'landscape-right') {
@@ -47,9 +74,9 @@ export function resize(srcPixels, srcWidth, srcHeight, dstWidth, dstHeight, outp
     }
 
     if (isMirrored) {
-      mirrored = Mat.create(0, 0, DataTypes.CV_8UC3);
+      const mirrored = Mat.create(0, 0, DataTypes.CV_8UC3);
       OpenCV.flip(oriented, mirrored, 1);
-      if (oriented !== rgb) oriented.release();
+      oriented.release();
       oriented = mirrored;
     }
 
@@ -62,11 +89,20 @@ export function resize(srcPixels, srcWidth, srcHeight, dstWidth, dstHeight, outp
 
     resized = Mat.create(0, 0, DataTypes.CV_8UC3);
     resizeSize = Size.create(newWidth, newHeight);
-    OpenCV.resize(oriented, resized, resizeSize, 0, 0, InterpolationFlags.INTER_LINEAR);
+
+    OpenCV.resize(
+      oriented,
+      resized,
+      resizeSize,
+      0,
+      0,
+      InterpolationFlags.INTER_LINEAR,
+    );
+
     resizeSize.release();
     resizeSize = null;
 
-    if (oriented !== rgb) oriented.release();
+    oriented.release();
     oriented = null;
 
     const padX = Math.floor((dstWidth - newWidth) / 2);
@@ -74,56 +110,83 @@ export function resize(srcPixels, srcWidth, srcHeight, dstWidth, dstHeight, outp
     const right = dstWidth - newWidth - padX;
     const bottom = dstHeight - newHeight - padY;
 
-    letterboxed = Mat.create(0, 0, DataTypes.CV_8UC3);
-    borderValue = Scalar.create(114, 114, 114, 0);
-    OpenCV.copyMakeBorder(resized, letterboxed, padY, bottom, padX, right, BorderTypes.BORDER_CONSTANT, borderValue);
-    borderValue.release();
-    borderValue = null;
+    if (padX === 0 && padY === 0 && right === 0 && bottom === 0) {
+      letterboxed = resized;
+      resized = null;
+    } else {
+      letterboxed = Mat.create(0, 0, DataTypes.CV_8UC3);
+      borderValue = Scalar.create(114, 114, 114, 0);
 
-    resized.release();
-    resized = null;
+      OpenCV.copyMakeBorder(
+        resized,
+        letterboxed,
+        padY,
+        bottom,
+        padX,
+        right,
+        BorderTypes.BORDER_CONSTANT,
+        borderValue,
+      );
 
-    const result = letterboxed.toBuffer('uint8');
-    const pixels = result.buffer;
-    letterboxed.release();
-    letterboxed = null;
+      borderValue.release();
+      borderValue = null;
 
-    const inv255 = 1 / 255.0;
-    const totalPixels = dstWidth * dstHeight;
+      resized.release();
+      resized = null;
+    }
+
+    const tCHW = performance.now();
 
     if (format === 'CHW') {
-      const planeSize = totalPixels;
-      const plane2 = planeSize * 2;
-      for (let y = 0; y < dstHeight; y++) {
-        for (let x = 0; x < dstWidth; x++) {
-          const srcIdx = (y * dstWidth + x) * 3;
-          const dstIdx = y * dstWidth + x;
-          dst[dstIdx]             = pixels[srcIdx]     * inv255;
-          dst[dstIdx + planeSize] = pixels[srcIdx + 1] * inv255;
-          dst[dstIdx + plane2]    = pixels[srcIdx + 2] * inv255;
-        }
+      const channels = MatVector.create();
+      OpenCV.split(letterboxed, channels);
+
+      const rMat = channels.get(0);
+      const gMat = channels.get(1);
+      const bMat = channels.get(2);
+
+      const rResult = rMat.toBuffer('uint8');
+      const gResult = gMat.toBuffer('uint8');
+      const bResult = bMat.toBuffer('uint8');
+
+      const r = new Uint8Array(rResult.buffer);
+      const g = new Uint8Array(gResult.buffer);
+      const b = new Uint8Array(bResult.buffer);
+
+      const planeSize = dstWidth * dstHeight;
+      const inv255 = 1 / 255;
+
+      const tSplit = performance.now();
+
+      for (let i = 0; i < planeSize; i++) {
+        dst[i] = r[i] * inv255;
+        dst[planeSize + i] = g[i] * inv255;
+        dst[planeSize * 2 + i] = b[i] * inv255;
       }
     } else {
-      const len = totalPixels * 3;
-      for (let i = 0; i < len; i++) {
+      const result = letterboxed.toBuffer('uint8');
+      const pixels = new Uint8Array(result.buffer);
+
+      const length = dstWidth * dstHeight * 3;
+      const inv255 = 1 / 255;
+
+      for (let i = 0; i < length; i++) {
         dst[i] = pixels[i] * inv255;
       }
     }
-
   } catch (e) {
+    console.log('[RESIZE ERROR]', e);
   } finally {
     if (rgba) rgba.release();
     if (rgb) rgb.release();
-    if (oriented && oriented !== rgb) oriented.release();
+    if (oriented) oriented.release();
     if (resized) resized.release();
     if (letterboxed) letterboxed.release();
     if (borderValue) borderValue.release();
     if (resizeSize) resizeSize.release();
   }
-
   return dst;
 }
-
 
 export function createBmpBase64(pixels, width, height, format, boxes = []) {
   'worklet';
@@ -132,14 +195,24 @@ export function createBmpBase64(pixels, width, height, format, boxes = []) {
   const fileSize = 54 + dataSize;
   const buffer = new Uint8Array(fileSize);
 
-  buffer[0] = 0x42; buffer[1] = 0x4D;
-  buffer[2] = fileSize & 0xff; buffer[3] = (fileSize >> 8) & 0xff; buffer[4] = (fileSize >> 16) & 0xff; buffer[5] = (fileSize >> 24) & 0xff;
-  buffer[10] = 54; buffer[14] = 40;
-  buffer[18] = width & 0xff; buffer[19] = (width >> 8) & 0xff;
-  
+  buffer[0] = 0x42;
+  buffer[1] = 0x4d;
+  buffer[2] = fileSize & 0xff;
+  buffer[3] = (fileSize >> 8) & 0xff;
+  buffer[4] = (fileSize >> 16) & 0xff;
+  buffer[5] = (fileSize >> 24) & 0xff;
+  buffer[10] = 54;
+  buffer[14] = 40;
+  buffer[18] = width & 0xff;
+  buffer[19] = (width >> 8) & 0xff;
+
   const h = -height;
-  buffer[22] = h & 0xff; buffer[23] = (h >> 8) & 0xff; buffer[24] = (h >> 16) & 0xff; buffer[25] = (h >> 24) & 0xff;
-  buffer[26] = 1; buffer[28] = 24;
+  buffer[22] = h & 0xff;
+  buffer[23] = (h >> 8) & 0xff;
+  buffer[24] = (h >> 16) & 0xff;
+  buffer[25] = (h >> 24) & 0xff;
+  buffer[26] = 1;
+  buffer[28] = 24;
 
   const channelSize = width * height;
   const channelSize2 = channelSize * 2;
@@ -150,15 +223,21 @@ export function createBmpBase64(pixels, width, height, format, boxes = []) {
       let r, g, b;
       if (format === 'CHW') {
         const srcIdx = y * width + x;
-        r = pixels[srcIdx] * 255; g = pixels[srcIdx + channelSize] * 255; b = pixels[srcIdx + channelSize2] * 255;
+        r = pixels[srcIdx] * 255;
+        g = pixels[srcIdx + channelSize] * 255;
+        b = pixels[srcIdx + channelSize2] * 255;
       } else {
         const srcIdx = (y * width + x) * 3;
-        r = pixels[srcIdx] * 255; g = pixels[srcIdx + 1] * 255; b = pixels[srcIdx + 2] * 255;
+        r = pixels[srcIdx] * 255;
+        g = pixels[srcIdx + 1] * 255;
+        b = pixels[srcIdx + 2] * 255;
       }
-      buffer[p] = b; buffer[p + 1] = g; buffer[p + 2] = r; 
+      buffer[p] = b;
+      buffer[p + 1] = g;
+      buffer[p + 2] = r;
       p += 3;
     }
-    p += (rowSize - width * 3); 
+    p += rowSize - width * 3;
   }
 
   if (boxes && boxes.length > 0) {
@@ -212,7 +291,8 @@ export function createBmpBase64(pixels, width, height, format, boxes = []) {
     const b1 = buffer[i];
     const b2 = i + 1 < fileSize ? buffer[i + 1] : 0;
     const b3 = i + 2 < fileSize ? buffer[i + 2] : 0;
-    b64 += chars[b1 >> 2]; b64 += chars[((b1 & 3) << 4) | (b2 >> 4)];
+    b64 += chars[b1 >> 2];
+    b64 += chars[((b1 & 3) << 4) | (b2 >> 4)];
     b64 += i + 1 < fileSize ? chars[((b2 & 15) << 2) | (b3 >> 6)] : '=';
     b64 += i + 2 < fileSize ? chars[b3 & 63] : '=';
   }

@@ -1,74 +1,69 @@
-import { calculateIoU } from "../spatialProcessor/geometryUtils"
+const CONFIDENCE_THRESHOLD = 0.4;
 
-const NUM_CLASSES = 80;
-const CONFIDENCE_THRESHOLD = 0.5;
-const IOU_THRESHOLD = 0.7;
-
-export const parseYoloOutput = (rawOutputs, yoloSize, numAnchors, isDebug = false) => {
+export const parseYoloOutput = (rawOutputs, yoloSize, isDebug = false) => {
   'worklet';
-  
+
   const output = new Float32Array(rawOutputs[0]);
-  const maxScores = new Float32Array(numAnchors);
-  const bestClasses = new Int32Array(numAnchors);
-
-  for (let c = 0; c < NUM_CLASSES; c++) {
-    const rowOffset = (4 + c) * numAnchors;
-    for (let i = 0; i < numAnchors; i++) {
-      const score = output[rowOffset + i];
-      if (score > maxScores[i]) {
-        maxScores[i] = score;
-        bestClasses[i] = c;
-      }
-    }
-  }
-
   const detections = [];
+  const step = 6;
+  const numBoxes = output.length / step;
 
-  for (let i = 0; i < numAnchors; i++) {
-    const score = maxScores[i];
-    if (score > CONFIDENCE_THRESHOLD) {
-      const cx = output[0 * numAnchors + i] * yoloSize;
-      const cy = output[1 * numAnchors + i] * yoloSize;
-      const w = output[2 * numAnchors + i] * yoloSize;
-      const h = output[3 * numAnchors + i] * yoloSize;
+  let isNormalized = true;
+  if (numBoxes > 0) {
+    const firstX2 = output[2];
+    const firstY2 = output[3];
+    if (firstX2 > 1 || firstY2 > 1) isNormalized = false;
+  }
 
-      detections.push({
-        labelIdx: bestClasses[i],
-        score: score,
-        x: cx - w / 2,
-        y: cy - h / 2,
-        width: w,
-        height: h
-      });
+  for (let i = 0; i < numBoxes; i++) {
+    const offset = i * step;
+    const x1 = output[offset + 0];
+    const y1 = output[offset + 1];
+    const x2 = output[offset + 2];
+    const y2 = output[offset + 3];
+    const score = output[offset + 4];
+    const classId = Math.round(output[offset + 5]);
+
+    if (score <= CONFIDENCE_THRESHOLD) continue;
+
+    let left = x1,
+      top = y1,
+      right = x2,
+      bottom = y2;
+      
+    if (isNormalized) {
+      left *= yoloSize;
+      top *= yoloSize;
+      right *= yoloSize;
+      bottom *= yoloSize;
     }
+
+    detections.push({
+      labelIdx: classId,
+      score: score,
+      x: left,
+      y: top,
+      width: right - left,
+      height: bottom - top,
+    });
   }
 
-  detections.sort((a, b) => b.score - a.score);
-  const result = [];
-  const suppressed = new Array(detections.length).fill(false);
+  if (isDebug && detections.length > 0) {
+    const logMessage = detections
+      .map(
+        obj =>
+          `- Lớp ID: ${obj.labelIdx} | Độ tự tin: ${(obj.score * 100).toFixed(
+            1,
+          )}% | Tọa độ: [x: ${obj.x.toFixed(0)}, y: ${obj.y.toFixed(
+            0,
+          )}, w: ${obj.width.toFixed(0)}, h: ${obj.height.toFixed(0)}]`,
+      )
+      .join('\n');
 
-  for (let i = 0; i < detections.length; i++) {
-    if (suppressed[i]) continue;
-    
-    const best = detections[i];
-    result.push(best);
-
-    for (let j = i + 1; j < detections.length; j++) {
-      if (!suppressed[j] && best.labelIdx === detections[j].labelIdx) {
-        if (calculateIoU(best, detections[j]) > IOU_THRESHOLD) {
-          suppressed[j] = true;
-        }
-      }
-    }
+    console.log(
+      `\n=== YOLO đã phát hiện ${detections.length} vật thể ===\n${logMessage}`,
+    );
   }
 
-  if (isDebug && result.length > 0) {
-    const logMessage = result.map(obj => 
-      `- Lớp (Class ID): ${obj.labelIdx} | Độ tự tin: ${(obj.score * 100).toFixed(1)}% | Tọa độ: [x: ${obj.x.toFixed(0)}, y: ${obj.y.toFixed(0)}, w: ${obj.width.toFixed(0)}, h: ${obj.height.toFixed(0)}]`
-    ).join('\n');
-    
-    console.log(`\n=== Yolo đã phát hiện ${result.length} vật thể ===\n${logMessage}`);
-  }
-
-  return result;
+  return detections;
 };

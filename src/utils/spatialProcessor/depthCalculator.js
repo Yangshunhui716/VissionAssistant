@@ -3,8 +3,14 @@ export const getDepthFromMidas = (yoloBox, depthMap, yoloSize, midasSize) => {
 
   const midasX = Math.max(0, Math.floor((yoloBox.x / yoloSize) * midasSize));
   const midasY = Math.max(0, Math.floor((yoloBox.y / yoloSize) * midasSize));
-  const midasW = Math.min(midasSize - midasX, Math.floor((yoloBox.width / yoloSize) * midasSize));
-  const midasH = Math.min(midasSize - midasY, Math.floor((yoloBox.height / yoloSize) * midasSize));
+  const midasW = Math.min(
+    midasSize - midasX,
+    Math.floor((yoloBox.width / yoloSize) * midasSize),
+  );
+  const midasH = Math.min(
+    midasSize - midasY,
+    Math.floor((yoloBox.height / yoloSize) * midasSize),
+  );
 
   const coreX = midasX + Math.floor(midasW * 0.25);
   const coreY = midasY + Math.floor(midasH * 0.4);
@@ -18,9 +24,9 @@ export const getDepthFromMidas = (yoloBox, depthMap, yoloSize, midasSize) => {
   for (let y = coreY; y < coreY + coreH; y++) {
     for (let x = coreX; x < coreX + coreW; x++) {
       if (x >= 0 && x < midasSize && y >= 0 && y < midasSize) {
-        const index = (y * midasSize) + x;
+        const index = y * midasSize + x;
         const d = depthMap[index];
-        
+
         if (d > maxRawDepth) maxRawDepth = d;
         sumDepth += d;
         count++;
@@ -28,19 +34,19 @@ export const getDepthFromMidas = (yoloBox, depthMap, yoloSize, midasSize) => {
     }
   }
 
-  const avgDepth = count > 0 ? (sumDepth / count) : 0;
-  return (maxRawDepth * 0.7) + (avgDepth * 0.3);
+  const avgDepth = count > 0 ? sumDepth / count : 0;
+  return maxRawDepth * 0.7 + avgDepth * 0.3;
 };
 
-export const translateDepthToText = (rawVal) => {
+export const translateDepthToText = rawVal => {
   'worklet';
-  
-  if (rawVal <= 0) return "không rõ";
-  if (rawVal > 200) return "dưới nửa mét";
-  if (rawVal > 150) return "khoảng 1 mét";
-  if (rawVal > 100) return "khoảng 2 mét";
-  if (rawVal > 60)  return "khoảng 3 mét";
-  if (rawVal > 30)  return "khoảng 5 mét";
-  
-  return "khá xa";
+
+  if (rawVal <= 0) return 'không rõ';
+  if (rawVal > 200) return 'dưới nửa mét';
+  if (rawVal > 150) return 'khoảng 1 mét';
+  if (rawVal > 100) return 'khoảng 2 mét';
+  if (rawVal > 60) return 'khoảng 3 mét';
+  if (rawVal > 30) return 'khoảng 5 mét';
+
+  return 'khá xa';
 };

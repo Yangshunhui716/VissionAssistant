@@ -11,10 +11,17 @@ export const StatusScreen = ({ message, isLoading = false }) => {
 };
 
 const styles = StyleSheet.create({
-  center: { 
-    flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: 'white',
+  center: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'white',
   },
-  text: { 
-    fontSize: 16, color: 'black', marginTop: 10, textAlign: 'center', paddingHorizontal: 20
+  text: {
+    fontSize: 16,
+    color: 'black',
+    marginTop: 10,
+    textAlign: 'center',
+    paddingHorizontal: 20,
   },
 });

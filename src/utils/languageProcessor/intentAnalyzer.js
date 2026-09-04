@@ -19,11 +19,27 @@ const INTENT_DICTIONARY = [
     intent: 'SCAN_GENERAL',
     keywords: ['có gì', 'nhận diện', 'phía trước', 'quét', 'trước mắt', 'nhìn'],
   },
+  {
+    intent: 'SCAN_CURRENCY',
+    keywords: ['đọc tiền', 'quét tiền', 'nhận diện tiền', 'tờ này', 'mệnh giá'],
+  },
+  {
+    intent: 'SCAN_TEXT',
+    keywords: ['đọc chữ', 'quét chữ', 'đọc văn bản', 'có chữ'],
+  },
+  {
+    intent: 'OBSTACLE_OFF',
+    keywords: ['tắt cảnh báo', 'ngừng cảnh báo', 'vật cản'],
+  },
+  {
+    intent: 'OBSTACLE_ON',
+    keywords: ['bật cảnh báo', 'mở cảnh báo', 'vật cản'],
+  },
 ];
 
 const PRECOMPILED_ALIASES = Object.keys(ALIAS_MAP).map(alias => ({
   regex: new RegExp(`\\b${alias}\\b`, 'g'),
-  replacement: ALIAS_MAP[alias]
+  replacement: ALIAS_MAP[alias],
 }));
 
 const intentFuse = new Fuse(INTENT_DICTIONARY, {
@@ -54,21 +70,27 @@ export const analyzeCommand = rawText => {
   let text = rawText.toLowerCase().trim();
 
   for (let i = 0; i < PRECOMPILED_ALIASES.length; i++) {
-    text = text.replace(PRECOMPILED_ALIASES[i].regex, PRECOMPILED_ALIASES[i].replacement);
+    text = text.replace(
+      PRECOMPILED_ALIASES[i].regex,
+      PRECOMPILED_ALIASES[i].replacement,
+    );
   }
 
   if (IS_DEBUG) console.log('[NÃO BỘ] Đã nắn ngọng:', text);
 
   let detectedIntent = null;
 
-  if (text.includes('tìm') || text.includes('kiếm') || text.includes('ở đâu')) {
+  if (text.includes('bật cảnh báo') || text.includes('mở cảnh báo')) {
+    detectedIntent = 'OBSTACLE_ON';
+  } else if (text.includes('tắt cảnh báo') || text.includes('ngừng cảnh báo')) {
+    detectedIntent = 'OBSTACLE_OFF';
+  } else if (text.includes('tìm') || text.includes('kiếm') || text.includes('ở đâu')) {
     detectedIntent = 'FIND';
-  } else if (
-    text.includes('có gì') ||
-    text.includes('nhận diện') ||
-    text.includes('quét') ||
-    text.includes('phía trước')
-  ) {
+  } else if (text.includes('tiền') || text.includes('mệnh giá')) { 
+    detectedIntent = 'SCAN_CURRENCY';
+  } else if (text.includes('chữ') || text.includes('văn bản')) { 
+    detectedIntent = 'SCAN_TEXT';
+  } else if (text.includes('có gì') || text.includes('quét') || text.includes('phía trước')) {
     detectedIntent = 'SCAN_GENERAL';
   } else {
     const chunks = getNGrams(text).sort((a, b) => b.length - a.length);
@@ -83,6 +105,9 @@ export const analyzeCommand = rawText => {
       }
     }
   }
+
+  if (detectedIntent === 'OBSTACLE_ON') return { intent: 'OBSTACLE_ON' };
+  if (detectedIntent === 'OBSTACLE_OFF') return { intent: 'OBSTACLE_OFF' };
 
   if (detectedIntent === 'FIND') {
     let bestMatchName = null;
@@ -116,6 +141,8 @@ export const analyzeCommand = rawText => {
   }
 
   if (detectedIntent === 'SCAN_GENERAL') return { intent: 'SCAN_GENERAL' };
+  if (detectedIntent === 'SCAN_CURRENCY') return { intent: 'SCAN_CURRENCY' };
+  if (detectedIntent === 'SCAN_TEXT') return { intent: 'SCAN_TEXT' };
 
   return { intent: 'INVALID' };
 };

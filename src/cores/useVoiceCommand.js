@@ -14,11 +14,17 @@ const SILENCE_TIMEOUT_MS = 1500;
 const POST_COMMAND_COOLDOWN_MS = 3500;
 const MIN_COMMAND_LENGTH = 2;
 
-export const useVoiceCommand = (hasMicPermission, playFeedback, haptics) => {
-  const [appState, setAppState] = useState('SLEEP');
-  const [targetToFind, setTargetToFind] = useState(null);
-  const [isScanningGeneral, setIsScanningGeneral] = useState(false);
-
+export const useVoiceCommand = (
+  hasMicPermission,
+  playFeedback,
+  haptics,
+  setAppState,
+  setIsObstacleActive,
+  setTargetToFind,
+  setIsScanningGeneral,
+  setIsScanningCurrency,
+  setIsScanningText,
+) => {
   const stateRef = useRef('SLEEP');
   const timeoutRef = useRef(null);
   const isModelLoaded = useRef(false);
@@ -75,17 +81,43 @@ export const useVoiceCommand = (hasMicPermission, playFeedback, haptics) => {
     if (IS_DEBUG) console.log('>> LỆNH ĐÃ CHỐT:', finalText);
     const { intent, targetName } = analyzeCommand(finalText);
 
-    if (intent === 'FIND') {
+    if (intent === 'OBSTACLE_ON') {
+      setTargetToFind(null);
       setIsScanningGeneral(false);
+      setIsScanningText(false);
+      setIsScanningCurrency(false);
+      setIsObstacleActive(true);
+      playFeedback(PROMPTS.obstacle.on);
+    } else if (intent === 'OBSTACLE_OFF') {
+      setIsObstacleActive(false);
+      playFeedback(PROMPTS.obstacle.off);
+    } else if (intent === 'FIND') {
+      setIsScanningGeneral(false);
+      setIsScanningText(false);
+      setIsScanningCurrency(false);
       setTargetToFind(targetName);
       playFeedback(PROMPTS.search.start(targetName));
     } else if (intent === 'SCAN_GENERAL') {
       setTargetToFind(null);
+      setIsScanningText(false);
+      setIsScanningCurrency(false);
       setIsScanningGeneral(true);
       playFeedback(PROMPTS.scan.start);
+    } else if (intent === 'SCAN_CURRENCY') {
+      setTargetToFind(null);
+      setIsScanningGeneral(false);
+      setIsScanningText(false);
+      setIsScanningCurrency(true);
+      playFeedback(PROMPTS.currency.start);
+    } else if (intent === 'SCAN_TEXT') {
+      setTargetToFind(null);
+      setIsScanningGeneral(false);
+      setIsScanningCurrency(false);
+      setIsScanningText(true);
+      playFeedback(PROMPTS.text.start);
     } else {
       haptics.error();
-      playFeedback(PROMPTS.search.invalid);
+      playFeedback(PROMPTS.error.invalidCommand);
     }
 
     setTimeout(startVoskGuard, POST_COMMAND_COOLDOWN_MS);
@@ -127,11 +159,6 @@ export const useVoiceCommand = (hasMicPermission, playFeedback, haptics) => {
   }, [hasMicPermission]);
 
   return {
-    appState,
-    targetToFind,
-    isScanningGeneral,
-    setTargetToFind,
-    setIsScanningGeneral,
     manualWakeUp: switchToListening,
     manualStop: startVoskGuard,
   };

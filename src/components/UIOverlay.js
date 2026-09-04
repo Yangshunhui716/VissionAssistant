@@ -1,103 +1,582 @@
 import React, { memo } from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import { View, StyleSheet, Pressable } from 'react-native';
+import { Text, Surface, Icon, useTheme } from 'react-native-paper';
 
 /** @type {React.FC<any>} */
-export const UIOverlay = memo(({
-  fps,
-  objectList,
-  detectedObj,
-  appState,
-  transcript,
-}) => {
-  return (
-    <>
-      {fps ? (
-        <View style={styles.fpsOverlay}>
-          <Text style={styles.fpsText}>FPS: {fps}</Text>
+export const UIOverlay = memo(
+  ({
+    fps,
+    objectList,
+    detectedObj,
+    appState,
+    transcript,
+
+    activeFunction,
+    isObstacleActive,
+
+    onObstaclePress,
+    onCurrencyPress,
+    onObjectPress,
+    onTextPress,
+    onMicPress,
+  }) => {
+    const theme = useTheme();
+
+    const isListening = appState === 'LISTENING';
+    const isWaking = appState === 'WAKING_UP';
+
+    const isObjectActive = activeFunction === 'Đồ vật';
+
+    const isCurrencyActive = activeFunction === 'Tiền tệ';
+
+    const isTextActive = activeFunction === 'Văn bản';
+
+    const isFunctionActive = activeFunction != null;
+
+    const disableAllFunctions = isFunctionActive;
+
+    const accentColor = isListening
+      ? '#16A34A'
+      : isWaking
+      ? '#D97706'
+      : '#6B7280';
+
+    const stateText = isFunctionActive
+      ? activeFunction
+      : isListening
+      ? 'Đang lắng nghe'
+      : isWaking
+      ? 'Đang khởi động'
+      : 'Đang ngủ';
+
+    const getMenuButtonStyle = isActive => [
+      styles.menuButton,
+
+      isActive && styles.menuButtonActive,
+
+      isFunctionActive && !isActive && styles.menuButtonDisabled,
+    ];
+
+    const getMenuTextStyle = isActive => [
+      styles.menuText,
+
+      isActive && styles.menuTextActive,
+
+      isFunctionActive && !isActive && styles.menuTextDisabled,
+    ];
+
+    const getMenuIconColor = isActive => {
+      if (isActive) {
+        return '#16A34A';
+      }
+
+      if (isFunctionActive) {
+        return '#9CA3AF';
+      }
+
+      return '#374151';
+    };
+
+    return (
+      <View style={StyleSheet.absoluteFill} pointerEvents="box-none">
+        <View style={styles.resultContainer}>
+          <Surface elevation={2} style={styles.resultBox}>
+            {detectedObj?.name ? (
+              <>
+                <Text style={styles.detectionTitle}>
+                  {detectedObj.name.toUpperCase()}
+                </Text>
+
+                <View style={styles.detectionInfo}>
+                  <Text style={styles.detectionText}>{detectedObj.depth}</Text>
+
+                  <View style={styles.dotSeparator} />
+
+                  <Text style={styles.detectionText}>{detectedObj.motion}</Text>
+                </View>
+              </>
+            ) : (
+              <Text style={styles.resultText}>{transcript || ' '}</Text>
+            )}
+          </Surface>
         </View>
-      ) : (
-        <></>
-      )}
-      <View style={styles.alertBox}>
-        <Text style={styles.alertTitle}>
-          PHÁT HIỆN: {detectedObj.name.toUpperCase()}
-        </Text>
-        <Text style={styles.alertDepth}>Chỉ số: {detectedObj.depth}</Text>
-        <Text style={styles.alertDepth}>Trạng thái: {detectedObj.motion}</Text>
-      </View>
 
-      <View style={styles.debugList}>
-        {objectList.map((name, index) => (
-          <Text key={index} style={styles.debugText}>
-            {name}
-          </Text>
-        ))}
-      </View>
+        <View style={styles.stateContainer}>
+          <Surface
+            elevation={3}
+            style={[
+              styles.state,
+              {
+                borderColor: isFunctionActive ? '#16A34A' : accentColor,
+              },
+            ]}
+          >
+            <View
+              style={[
+                styles.stateDot,
+                {
+                  backgroundColor: isFunctionActive ? '#16A34A' : accentColor,
+                },
+              ]}
+            />
 
-      <View
-        style={[
-          styles.transcriptBox,
-          appState === 'SLEEP'
-            ? { borderColor: 'gray' }
-            : appState === 'LISTENING'
-            ? { borderColor: '#00FF00' }
-            : { borderColor: 'yellow' },
-        ]}
-      >
-        <Text style={styles.transcriptText}>{transcript}</Text>
+            <Text
+              style={[
+                styles.stateText,
+                {
+                  color: isFunctionActive ? '#16A34A' : accentColor,
+                },
+              ]}
+            >
+              {stateText}
+            </Text>
+          </Surface>
+        </View>
+
+        <View style={styles.bottomMenu}>
+          <View style={styles.menuRow}>
+            <Pressable
+              disabled={disableAllFunctions}
+              style={({ pressed }) => [
+                styles.menuButton,
+                isObstacleActive && styles.menuButtonObstacleActive,
+                disableAllFunctions && styles.menuButtonDisabled,
+                pressed && !disableAllFunctions && styles.menuPressed,
+              ]}
+              onPress={onObstaclePress}
+            >
+              <Icon
+                source="alert-circle-outline"
+                size={26}
+                color={
+                  isObstacleActive
+                    ? '#16A34A'
+                    : disableAllFunctions
+                    ? '#9CA3AF'
+                    : '#374151'
+                }
+              />
+
+              <Text
+                style={[
+                  styles.menuText,
+                  isObstacleActive && styles.menuTextActive,
+                  disableAllFunctions && styles.menuTextDisabled,
+                ]}
+              >
+                Vật cản
+              </Text>
+            </Pressable>
+
+            <Pressable
+              disabled={disableAllFunctions}
+              style={({ pressed }) => [
+                getMenuButtonStyle(isCurrencyActive),
+
+                pressed && !disableAllFunctions && styles.menuPressed,
+              ]}
+              onPress={onCurrencyPress}
+            >
+              <Icon
+                source="cash-multiple"
+                size={26}
+                color={getMenuIconColor(isCurrencyActive)}
+              />
+
+              <Text style={getMenuTextStyle(isCurrencyActive)}>Tiền tệ</Text>
+            </Pressable>
+          </View>
+
+          <View style={styles.menuRow}>
+            <Pressable
+              disabled={disableAllFunctions}
+              style={({ pressed }) => [
+                getMenuButtonStyle(isObjectActive),
+
+                pressed && !disableAllFunctions && styles.menuPressed,
+              ]}
+              onPress={onObjectPress}
+            >
+              <Icon
+                source="cube-outline"
+                size={26}
+                color={getMenuIconColor(isObjectActive)}
+              />
+
+              <Text style={getMenuTextStyle(isObjectActive)}>Đồ vật</Text>
+            </Pressable>
+
+            <Pressable
+              disabled={disableAllFunctions}
+              style={({ pressed }) => [
+                getMenuButtonStyle(isTextActive),
+
+                pressed && !disableAllFunctions && styles.menuPressed,
+              ]}
+              onPress={onTextPress}
+            >
+              <Icon
+                source="text-box-outline"
+                size={26}
+                color={getMenuIconColor(isTextActive)}
+              />
+
+              <Text style={getMenuTextStyle(isTextActive)}>Văn bản</Text>
+            </Pressable>
+          </View>
+        </View>
+
+        <View
+          style={[
+            styles.micWrapper,
+            {
+              borderColor: accentColor,
+            },
+          ]}
+        >
+          <Surface elevation={5} style={styles.micButton}>
+            <Pressable
+              onPress={onMicPress}
+              style={({ pressed }) => [
+                styles.micPressable,
+                pressed && styles.micPressed,
+              ]}
+            >
+              <Icon
+                source={isListening ? 'microphone' : 'microphone-outline'}
+                size={42}
+                color={accentColor}
+              />
+            </Pressable>
+          </Surface>
+        </View>
+
+        {fps != null && (
+          <View style={styles.fps}>
+            <Text style={styles.fpsText}>FPS: {fps}</Text>
+          </View>
+        )}
+
+        {objectList?.length > 0 && (
+          <View style={styles.debugList}>
+            {objectList.map((name, index) => (
+              <Text key={`${name}-${index}`} style={styles.debugText}>
+                {name}
+              </Text>
+            ))}
+          </View>
+        )}
       </View>
-    </>
-  );
-});
+    );
+  },
+);
 
 const styles = StyleSheet.create({
-  fpsOverlay: {
+
+  resultContainer: {
     position: 'absolute',
-    top: 60,
-    left: 20,
-    backgroundColor: 'rgba(0,0,0,0.7)',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 8,
-  },
-  fpsText: { color: '#00FF00', fontSize: 18, fontWeight: 'bold' },
-  alertBox: {
-    position: 'absolute',
-    bottom: 150,
-    alignSelf: 'center',
-    backgroundColor: 'rgba(255,0,0,0.85)',
-    padding: 15,
-    borderRadius: 12,
+
+    top: 20,
+    left: 24,
+    right: 24,
+
     alignItems: 'center',
   },
-  alertTitle: {
-    color: 'white',
-    fontSize: 20,
-    fontWeight: 'bold',
-    marginBottom: 5,
+
+  resultBox: {
+    minWidth: 180,
+    maxWidth: '100%',
+    minHeight: 54,
+
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+
+    borderRadius: 14,
+
+    backgroundColor: 'rgba(255,255,255,0.94)',
+
+    justifyContent: 'center',
+    alignItems: 'center',
   },
-  alertDepth: { color: 'yellow', fontSize: 24, fontWeight: '900' },
-  debugList: { position: 'absolute', top: 100, right: 20 },
-  debugText: {
-    color: 'yellow',
-    fontSize: 14,
-    backgroundColor: 'rgba(0,0,0,0.5)',
+
+  resultText: {
+    color: '#16A34A',
+
+    fontSize: 17,
+    fontWeight: '600',
+
+    textAlign: 'center',
+
+    lineHeight: 23,
   },
-  transcriptBox: {
+
+  detectionContainer: {
     position: 'absolute',
+
+    top: 100,
     left: 20,
     right: 20,
-    bottom: 50,
-    backgroundColor: 'rgba(0,0,0,0.9)',
-    padding: 15,
-    borderRadius: 15,
+
     alignItems: 'center',
-    borderWidth: 3,
   },
-  transcriptText: {
-    color: 'white',
-    fontSize: 18,
-    fontWeight: 'bold',
-    textAlign: 'center',
+
+  detectionBox: {
+    minWidth: 150,
+
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+
+    borderRadius: 16,
+
+    backgroundColor: 'rgba(17,24,39,0.90)',
+
+    alignItems: 'center',
+  },
+
+  detectionTitle: {
+    color: 'red',
+
+    fontSize: 17,
+    fontWeight: '800',
+
+    letterSpacing: 0.4,
+  },
+
+  detectionInfo: {
+    marginTop: 6,
+
+    flexDirection: 'row',
+
+    alignItems: 'center',
+  },
+
+  detectionText: {
+    color: 'black',
+
+    fontSize: 13,
+    fontWeight: '500',
+  },
+
+  dotSeparator: {
+    width: 4,
+    height: 4,
+
+    borderRadius: 2,
+
+    marginHorizontal: 9,
+
+    backgroundColor: '#9CA3AF',
+  },
+
+  stateContainer: {
+    position: 'absolute',
+
+    bottom: 158,
+
+    left: 0,
+    right: 0,
+
+    alignItems: 'center',
+  },
+
+  state: {
+    flexDirection: 'row',
+
+    alignItems: 'center',
+
+    paddingHorizontal: 14,
+    paddingVertical: 7,
+
+    borderWidth: 2,
+
+    borderRadius: 20,
+
+    backgroundColor: 'rgba(255,255,255,0.96)',
+  },
+
+  stateDot: {
+    width: 9,
+    height: 9,
+
+    borderRadius: 5,
+
+    marginRight: 8,
+  },
+
+  stateText: {
+    fontSize: 13,
+    fontWeight: '700',
+
+    letterSpacing: 0.2,
+  },
+
+  bottomMenu: {
+    position: 'absolute',
+
+    left: 0,
+    right: 0,
+    bottom: 0,
+
+    height: 150,
+
+    backgroundColor: 'rgba(255,255,255,0.96)',
+
+    borderTopLeftRadius: 22,
+    borderTopRightRadius: 22,
+
+    overflow: 'hidden',
+  },
+
+  menuRow: {
+    flex: 1,
+
+    flexDirection: 'row',
+  },
+
+  menuButton: {
+    flex: 1,
+
+    flexDirection: 'row',
+
+    alignItems: 'center',
+    justifyContent: 'center',
+
+    borderWidth: 0.7,
+    borderColor: '#D1D5DB',
+
+    backgroundColor: 'rgba(255,255,255,0.96)',
+  },
+
+  menuButtonActive: {
+    backgroundColor: 'rgba(220,252,231,0.95)',
+
+    borderColor: '#16A34A',
+
+    borderWidth: 2,
+  },
+
+  menuButtonObstacleActive: {
+    backgroundColor: 'rgba(220,252,231,0.95)',
+
+    borderColor: '#16A34A',
+
+    borderWidth: 2,
+  },
+
+  menuButtonDisabled: {
+    opacity: 0.35,
+  },
+
+  menuPressed: {
+    backgroundColor: '#F3F4F6',
+  },
+
+  menuText: {
+    marginLeft: 9,
+
+    fontSize: 16,
+    fontWeight: '600',
+
+    color: '#1F2937',
+  },
+
+  menuTextActive: {
+    marginLeft: 9,
+
+    fontSize: 16,
+    fontWeight: '800',
+
+    color: '#16A34A',
+  },
+
+  menuTextDisabled: {
+    color: '#9CA3AF',
+  },
+
+  micWrapper: {
+    position: 'absolute',
+
+    bottom: 30,
+
+    left: '50%',
+
+    marginLeft: -45,
+
+    width: 90,
+    height: 90,
+
+    borderRadius: 45,
+
+    borderWidth: 3,
+
+    backgroundColor: 'white',
+
+    padding: 4,
+
+    zIndex: 30,
+
+    elevation: 10,
+  },
+
+  micButton: {
+    width: '100%',
+    height: '100%',
+
+    borderRadius: 40,
+
+    backgroundColor: 'white',
+
+    overflow: 'hidden',
+  },
+
+  micPressable: {
+    flex: 1,
+
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  micPressed: {
+    backgroundColor: '#F3F4F6',
+  },
+
+  fps: {
+    position: 'absolute',
+
+    top: 10,
+    left: 10,
+
+    paddingHorizontal: 8,
+    paddingVertical: 5,
+
+    borderRadius: 7,
+
+    backgroundColor: 'rgba(0,0,0,0.72)',
+  },
+
+  fpsText: {
+    color: '#00FF00',
+
+    fontSize: 12,
+    fontWeight: '700',
+  },
+
+  debugList: {
+    position: 'absolute',
+
+    top: 80,
+    right: 10,
+
+    padding: 7,
+
+    borderRadius: 7,
+
+    backgroundColor: 'rgba(0,0,0,0.65)',
+  },
+
+  debugText: {
+    color: 'yellow',
+
+    fontSize: 12,
   },
 });

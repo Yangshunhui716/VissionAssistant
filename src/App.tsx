@@ -1,10 +1,11 @@
-import React, { useEffect, useCallback } from 'react';
+import { useEffect, useCallback, useState } from 'react';
 import { StyleSheet, TouchableOpacity, View, Image } from 'react-native';
 import {
   Camera,
   useCameraDevice,
   useCameraPermission,
   useMicrophonePermission,
+  usePhotoOutput,
 } from 'react-native-vision-camera';
 import { useSharedValue } from 'react-native-reanimated';
 
@@ -23,6 +24,8 @@ import { PROMPTS } from './utils/languageProcessor/feedbackPrompts';
 
 const App: React.FC = () => {
   const camera = useCameraDevice('back');
+  const photoOutput = usePhotoOutput();
+
   const {
     hasPermission: hasCameraPermission,
     requestPermission: requestCameraPermission,
@@ -33,40 +36,61 @@ const App: React.FC = () => {
   } = useMicrophonePermission();
 
   const isShaking = useSharedValue<boolean>(false);
-
+  const [isObstacleActive, setIsObstacleActive] = useState(false);
+  const [appState, setAppState] = useState('SLEEP');
+  const [targetToFind, setTargetToFind] = useState(null);
+  const [isScanningGeneral, setIsScanningGeneral] = useState(false);
+  const [isScanningCurrency, setIsScanningCurrency] = useState(false);
+  const [isScanningText, setIsScanningText] = useState(false);
   const { uiTranscript, playFeedback, haptics } = useFeedbackController();
-  const {
-    appState,
-    targetToFind,
-    isScanningGeneral,
+
+  const { manualWakeUp, manualStop } = useVoiceCommand(
+    hasMicPermission,
+    playFeedback,
+    haptics,
+    setAppState,
+    setIsObstacleActive,
     setTargetToFind,
     setIsScanningGeneral,
-    manualWakeUp,
-    manualStop,
-  } = useVoiceCommand(hasMicPermission, playFeedback, haptics);
+    setIsScanningCurrency,
+    setIsScanningText
+  );
 
   const handleSearchComplete = useCallback(
     (isFound: boolean, spatialMessage: string) => {
       setTargetToFind(null);
-      if (isFound) {
-        playFeedback(PROMPTS.search.found(spatialMessage));
-      } else {
-        playFeedback(PROMPTS.search.notFound(spatialMessage));
-      }
+      if (isFound) playFeedback(PROMPTS.search.found(spatialMessage));
+      else playFeedback(PROMPTS.search.notFound(spatialMessage));
     },
-    [playFeedback, haptics, setTargetToFind],
+    [playFeedback, setTargetToFind],
   );
 
   const handleGeneralScanComplete = useCallback(
     (foundItems: string[]) => {
       setIsScanningGeneral(false);
-      if (foundItems && foundItems.length > 0) {
+      if (foundItems && foundItems.length > 0)
         playFeedback(PROMPTS.scan.result(foundItems[0]));
-      } else {
-        playFeedback(PROMPTS.scan.empty);
-      }
+      else playFeedback(PROMPTS.scan.empty);
     },
     [playFeedback, setIsScanningGeneral],
+  );
+
+  const handleCurrencyScanComplete = useCallback(
+    (currency: string) => {
+      setIsScanningCurrency(false);
+      if (currency) playFeedback(PROMPTS.currency.result(currency));
+      else playFeedback(PROMPTS.currency.empty);
+    },
+    [playFeedback],
+  );
+
+  const handleTextScanComplete = useCallback(
+    (text: string) => {
+      setIsScanningText(false);
+      if (text) playFeedback(PROMPTS.text.result(text));
+      else playFeedback(PROMPTS.text.empty);
+    },
+    [playFeedback],
   );
 
   const handleThreatDetected = useCallback(
@@ -77,10 +101,13 @@ const App: React.FC = () => {
     [playFeedback, haptics],
   );
 
-  const handleFocusLost = useCallback(() => {
-    haptics.error();
-    playFeedback(PROMPTS.alert.outFocus);
-  }, [playFeedback, haptics]);
+  const handleFrameQuality = useCallback(
+    (frameQualityReason: string) => {
+      haptics.error();
+      playFeedback(PROMPTS.alert.frameQuality(frameQualityReason));
+    }, 
+    [playFeedback, haptics]
+  );
 
   const {
     frameOutput,
@@ -90,14 +117,30 @@ const App: React.FC = () => {
     isModelsLoaded,
     debugImage,
   } = useVision(
+    photoOutput,
+    isObstacleActive,
     targetToFind,
     handleSearchComplete,
     isScanningGeneral,
     handleGeneralScanComplete,
+    isScanningCurrency,
+    handleCurrencyScanComplete,
+    isScanningText,
+    handleTextScanComplete,
     handleThreatDetected,
-    handleFocusLost,
+    handleFrameQuality,
     isShaking,
+    setIsScanningText
   );
+
+  const activeFunction =
+  isScanningText
+    ? 'Văn bản'
+    : isScanningCurrency
+      ? 'Tiền tệ'
+      : isScanningGeneral
+        ? 'Đồ vật'
+        : null;
 
   useEffect(() => {
     if (!hasCameraPermission) requestCameraPermission();
@@ -110,11 +153,15 @@ const App: React.FC = () => {
       () => {
         haptics.error();
         playFeedback(PROMPTS.alert.shaking);
-      }
+      },
     );
-
     return () => stopMotionGuard();
-  }, [hasCameraPermission, hasMicPermission, requestCameraPermission, requestMicPermission]);
+  }, [
+    hasCameraPermission,
+    hasMicPermission,
+    requestCameraPermission,
+    requestMicPermission,
+  ]);
 
   if (!hasCameraPermission || !hasMicPermission)
     return <StatusScreen message="Vui lòng cấp quyền Camera & Microphone." />;
@@ -124,48 +171,24 @@ const App: React.FC = () => {
     return <StatusScreen message="Đang khởi động AI..." isLoading={true} />;
 
   return (
-    <TouchableOpacity
-      style={styles.container}
-      activeOpacity={1}
-      onLongPress={() => {
-        if (appState === 'SLEEP') manualWakeUp();
-      }}
-      onPress={() => {
-        if (appState === 'LISTENING') manualStop();
-      }}
-    >
-      <View style={{ flex: 1 }}>
-        <Camera
-          style={StyleSheet.absoluteFill}
-          device={camera}
-          isActive={true}
-          outputs={[frameOutput]}
+    <View style={styles.container}>
+      <Camera
+        style={StyleSheet.absoluteFill}
+        device={camera}
+        isActive={true}
+        outputs={[frameOutput, photoOutput]}
+        resizeMode="contain"
+      />
+
+      {IS_DEBUG && debugImage && (
+      <View style={styles.debugContainer}>
+        <Image
+          source={{ uri: debugImage }}
+          style={styles.debugImg}
           resizeMode="contain"
         />
-        <View
-          style={{
-            position: 'absolute',
-            bottom: 100,
-            right: 20,
-            zIndex: 999,
-            alignItems: 'flex-end',
-          }}
-        >
-          {debugImage && (
-            <Image
-              source={{ uri: debugImage }}
-              style={{
-                width: 150,
-                height: 150,
-                borderWidth: 3,
-                borderColor: 'lime',
-                marginBottom: 10,
-              }}
-              resizeMode="contain"
-            />
-          )}
-        </View>
       </View>
+    )}
 
       <UIOverlay
         fps={IS_DEBUG ? fps : null}
@@ -173,13 +196,60 @@ const App: React.FC = () => {
         detectedObj={detectedObj}
         appState={appState}
         transcript={uiTranscript}
+        activeFunction={activeFunction}
+        isObstacleActive={isObstacleActive}
+        onObstaclePress={() => {
+          if (isObstacleActive) {
+            setIsObstacleActive(false);
+          } else {
+            setIsObstacleActive(true);
+          }
+        }}
+
+        onCurrencyPress={() => {
+          setIsScanningCurrency(true);
+        }}
+
+        onObjectPress={() => {
+          setIsScanningGeneral(true);
+        }}
+
+        onTextPress={() => {
+          setIsScanningText(true);
+        }}
+
+        onMicPress={() => {
+          if (appState === 'LISTENING') {
+            manualStop();
+          } else {
+            manualWakeUp();
+          }
+        }}
       />
-    </TouchableOpacity>
+    </View>
   );
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: 'black' },
+  container: {
+    flex: 1,
+    backgroundColor: 'black',
+  },
+
+  debugContainer: {
+    position: 'absolute',
+    bottom: 160,
+    right: 20,
+    zIndex: 100,
+    elevation: 100,
+  },
+
+  debugImg: {
+    width: 150,
+    height: 150,
+    borderWidth: 3,
+    borderColor: 'lime',
+  },
 });
 
 export default App;

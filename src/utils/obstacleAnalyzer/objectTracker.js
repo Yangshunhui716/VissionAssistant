@@ -6,8 +6,8 @@ const MAX_MISSES = 3;
 const HISTORY_LEN = 5;
 const STALE_MS = 2000;
 const EMERGENCY_AREA_RATIO = 0.15;
-const GROWTH_RATIO = 1.15;
-const CROSS_MOVE_RATIO = 0.09;
+const GROWTH_RATIO = 1.30;
+const CROSS_MOVE_RATIO = 0.1;
 const MIN_MOTION_FRAMES = 2;
 
 
@@ -22,7 +22,7 @@ const pushHistory = (tr) => {
 
 const computeMotion = (tr, yoloSize) => {
   'worklet';
-  if (tr.history.length < MIN_MOTION_FRAMES) return 'Tĩnh';
+  if (tr.history.length < MIN_MOTION_FRAMES) return 'Trạng thái tĩnh';
 
   const first = tr.history[0];
   const last = tr.history[tr.history.length - 1];
@@ -38,10 +38,10 @@ const computeMotion = (tr, yoloSize) => {
     return moveX > 0 ? 'Cắt ngang sang phải' : 'Cắt ngang sang trái';
   }
 
-  return 'Tĩnh';
+  return 'Trạng thái tĩnh';
 };
 
-export const updateTracks = (detections, now, labelsVi, whitelist, yoloSize) => {
+export const updateTracks = (detections, now, whitelist, yoloSize) => {
   'worklet';
 
   if (!globalThis.__tracks || now - (globalThis.__tracksTime || 0) > STALE_MS) {
@@ -104,7 +104,7 @@ export const updateTracks = (detections, now, labelsVi, whitelist, yoloSize) => 
       hits: 1,
       misses: 0,
       history: [],
-      motion: 'Tĩnh',
+      motion: 'Trạng thái tĩnh',
       isEmergency: false,
     };
     pushHistory(tr);

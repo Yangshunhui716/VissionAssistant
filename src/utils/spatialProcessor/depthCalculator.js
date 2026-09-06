@@ -41,12 +41,12 @@ export const getDepthFromMidas = (yoloBox, depthMap, yoloSize, midasSize) => {
 export const translateDepthToText = rawVal => {
   'worklet';
 
-  if (rawVal <= 0) return 'không rõ';
-  if (rawVal > 200) return 'dưới nửa mét';
-  if (rawVal > 150) return 'khoảng 1 mét';
-  if (rawVal > 100) return 'khoảng 2 mét';
-  if (rawVal > 60) return 'khoảng 3 mét';
-  if (rawVal > 30) return 'khoảng 5 mét';
+  if (rawVal <= 0) return 'Không rõ';
+  if (rawVal > 200) return 'Dưới nửa mét';
+  if (rawVal > 150) return 'Khoảng 1 mét';
+  if (rawVal > 100) return 'Khoảng 2 mét';
+  if (rawVal > 60) return 'Khoảng 3 mét';
+  if (rawVal > 30) return 'Khoảng 5 mét';
 
-  return 'khá xa';
+  return 'Khá xa';
 };

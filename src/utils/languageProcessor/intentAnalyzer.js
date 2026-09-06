@@ -76,7 +76,7 @@ export const analyzeCommand = rawText => {
     );
   }
 
-  if (IS_DEBUG) console.log('[NÃO BỘ] Đã nắn ngọng:', text);
+  if (IS_DEBUG) console.log('SAU KHI FUSE: ', text);
 
   let detectedIntent = null;
 

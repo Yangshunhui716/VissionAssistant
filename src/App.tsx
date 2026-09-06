@@ -1,5 +1,5 @@
 import { useEffect, useCallback, useState } from 'react';
-import { StyleSheet, TouchableOpacity, View, Image } from 'react-native';
+import { StyleSheet, View, Image, Platform } from 'react-native';
 import {
   Camera,
   useCameraDevice,
@@ -8,6 +8,8 @@ import {
   usePhotoOutput,
 } from 'react-native-vision-camera';
 import { useSharedValue } from 'react-native-reanimated';
+import RNFS from 'react-native-fs';
+import { Button } from 'react-native-paper';
 
 import { useFeedbackController } from './cores/useFeedbackController';
 import { useVoiceCommand } from './cores/useVoiceCommand';
@@ -36,12 +38,15 @@ const App: React.FC = () => {
   } = useMicrophonePermission();
 
   const isShaking = useSharedValue<boolean>(false);
-  const [isObstacleActive, setIsObstacleActive] = useState(false);
+  const captureTrigger = useSharedValue<boolean>(false);
+
   const [appState, setAppState] = useState('SLEEP');
+  const [isObstacleActive, setIsObstacleActive] = useState(false);
   const [targetToFind, setTargetToFind] = useState(null);
   const [isScanningGeneral, setIsScanningGeneral] = useState(false);
   const [isScanningCurrency, setIsScanningCurrency] = useState(false);
   const [isScanningText, setIsScanningText] = useState(false);
+
   const { uiTranscript, playFeedback, haptics } = useFeedbackController();
 
   const { manualWakeUp, manualStop } = useVoiceCommand(
@@ -53,7 +58,7 @@ const App: React.FC = () => {
     setTargetToFind,
     setIsScanningGeneral,
     setIsScanningCurrency,
-    setIsScanningText
+    setIsScanningText,
   );
 
   const handleSearchComplete = useCallback(
@@ -96,7 +101,7 @@ const App: React.FC = () => {
   const handleThreatDetected = useCallback(
     (threatMessage: string) => {
       haptics.error();
-      playFeedback(PROMPTS.alert.threat(threatMessage));
+      playFeedback(PROMPTS.obstacle.threat(threatMessage));
     },
     [playFeedback, haptics],
   );
@@ -105,8 +110,62 @@ const App: React.FC = () => {
     (frameQualityReason: string) => {
       haptics.error();
       playFeedback(PROMPTS.alert.frameQuality(frameQualityReason));
-    }, 
-    [playFeedback, haptics]
+    },
+    [playFeedback, haptics],
+  );
+
+  const handleCaptureReportComplete = useCallback(
+    async (
+      original: string,
+      rotated: string,
+      scaled: string,
+      padding: string,
+      yoloBmp: string,
+      depthBmp: string,
+    ) => {
+      try {
+        const dir =
+          Platform.OS === 'android'
+            ? RNFS.ExternalDirectoryPath
+            : RNFS.DocumentDirectoryPath;
+        const ts = Date.now();
+        await RNFS.writeFile(
+          `${dir}/${ts}_1_ORI.bmp`,
+          original.replace('data:image/bmp;base64,', ''),
+          'base64',
+        );
+        await RNFS.writeFile(
+          `${dir}/${ts}_2_ROTATE.bmp`,
+          rotated.replace('data:image/bmp;base64,', ''),
+          'base64',
+        );
+        await RNFS.writeFile(
+          `${dir}/${ts}_3_SCALE.bmp`,
+          scaled.replace('data:image/bmp;base64,', ''),
+          'base64',
+        );
+        await RNFS.writeFile(
+          `${dir}/${ts}_4_PADDING.bmp`,
+          padding.replace('data:image/bmp;base64,', ''),
+          'base64',
+        );
+        await RNFS.writeFile(
+          `${dir}/${ts}_5_YOLO.bmp`,
+          yoloBmp.replace('data:image/bmp;base64,', ''),
+          'base64',
+        );
+        await RNFS.writeFile(
+          `${dir}/${ts}_6_MIDAS.bmp`,
+          depthBmp.replace('data:image/bmp;base64,', ''),
+          'base64',
+        );
+        console.log(`Đã lưu 6 ảnh vào:\n${dir}`);
+        playFeedback({ ui: `Đã lưu 6 ảnh vào:\n${dir}`, tts: null, priority: 1 });
+      } catch (e) {
+        console.error('Lỗi lưu ảnh:', e);
+      }
+    },
+    [],
   );
 
   const {
@@ -130,17 +189,17 @@ const App: React.FC = () => {
     handleThreatDetected,
     handleFrameQuality,
     isShaking,
-    setIsScanningText
+    captureTrigger,
+    handleCaptureReportComplete,
   );
 
-  const activeFunction =
-  isScanningText
+  const activeFunction = isScanningText
     ? 'Văn bản'
     : isScanningCurrency
-      ? 'Tiền tệ'
-      : isScanningGeneral
-        ? 'Đồ vật'
-        : null;
+    ? 'Tiền tệ'
+    : isScanningGeneral
+    ? 'Đồ vật'
+    : null;
 
   useEffect(() => {
     if (!hasCameraPermission) requestCameraPermission();
@@ -181,14 +240,30 @@ const App: React.FC = () => {
       />
 
       {IS_DEBUG && debugImage && (
-      <View style={styles.debugContainer}>
-        <Image
-          source={{ uri: debugImage }}
-          style={styles.debugImg}
-          resizeMode="contain"
-        />
-      </View>
-    )}
+        <View style={styles.debugContainer}>
+          <Image
+            source={{ uri: debugImage }}
+            style={styles.debugImg}
+            resizeMode="contain"
+          />
+        </View>
+      )}
+
+      {IS_DEBUG && (
+        <Button
+          mode="contained"
+          buttonColor="#EF4444"
+          icon="camera"
+          style={styles.captureBtn}
+          labelStyle={styles.captureBtnText}
+          onPress={() => {
+            playFeedback({ ui: 'Đang chụp...', tts: 'Tách', priority: 1 });
+            captureTrigger.value = true;
+          }}
+        >
+          LẤY ẢNH
+        </Button>
+      )}
 
       <UIOverlay
         fps={IS_DEBUG ? fps : null}
@@ -199,25 +274,38 @@ const App: React.FC = () => {
         activeFunction={activeFunction}
         isObstacleActive={isObstacleActive}
         onObstaclePress={() => {
-          if (isObstacleActive) {
-            setIsObstacleActive(false);
+          setIsObstacleActive(!isObstacleActive);
+        }}
+        onCurrencyPress={() => {
+          if (!isScanningCurrency) {
+            setIsScanningCurrency(true);
+            setIsScanningGeneral(false);
+            setIsScanningText(false);
+            setTargetToFind(null);
           } else {
-            setIsObstacleActive(true);
+            setIsScanningCurrency(false);
           }
         }}
-
-        onCurrencyPress={() => {
-          setIsScanningCurrency(true);
-        }}
-
         onObjectPress={() => {
-          setIsScanningGeneral(true);
+          if (!isScanningGeneral) {
+            setIsScanningGeneral(true);
+            setIsScanningCurrency(false);
+            setIsScanningText(false);
+            setTargetToFind(null);
+          } else {
+            setIsScanningGeneral(false);
+          }
         }}
-
         onTextPress={() => {
-          setIsScanningText(true);
+          if (!isScanningText) {
+            setIsScanningText(true);
+            setIsScanningGeneral(false);
+            setIsScanningCurrency(false);
+            setTargetToFind(null);
+          } else {
+            setIsScanningText(false);
+          }
         }}
-
         onMicPress={() => {
           if (appState === 'LISTENING') {
             manualStop();
@@ -235,7 +323,6 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: 'black',
   },
-
   debugContainer: {
     position: 'absolute',
     bottom: 160,
@@ -243,12 +330,23 @@ const styles = StyleSheet.create({
     zIndex: 100,
     elevation: 100,
   },
-
   debugImg: {
     width: 150,
     height: 150,
     borderWidth: 3,
     borderColor: 'lime',
+  },
+  captureBtn: {
+    position: 'absolute',
+    top: 110,
+    right: 10,
+    zIndex: 9999,
+    borderRadius: 8,
+  },
+  captureBtnText: {
+    color: 'white',
+    fontWeight: 'bold',
+    fontSize: 12,
   },
 });
 

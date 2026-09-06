@@ -2,7 +2,7 @@ import { useState, useCallback, useEffect, useRef, useMemo } from 'react';
 import { Vibration } from 'react-native';
 import Tts from 'react-native-tts';
 
-const TTS_RATE = 0.5;
+const TTS_RATE = 0.6;
 
 const HEARTBEAT_TIMEOUT_MS = 6000;
 const HEARTBEAT_TICK_MS = 1000;
@@ -66,11 +66,7 @@ export const useFeedbackController = () => {
         Tts.speak(promptObj.tts);
         currentPriorityRef.current = incomingPriority;
         lastActionTimeRef.current = Date.now();
-      } else {
-        console.log(
-          `[BỘ ĐIỀU PHỐI] Đã bỏ qua câu "${promptObj.tts}" vì AI đang bận đọc lệnh ưu tiên cao hơn.`,
-        );
-      }
+      } 
     }
   }, []);
 

@@ -41,14 +41,11 @@ export const startMotionGuard = (onMotionStateChange, onShakeWarning) => {
       shakyTime = 0;
     }
   });
-
-  console.log('[TIỀN ĐÌNH] Đã kích hoạt cảm biến chống nhòe ảnh.');
 };
 
 export const stopMotionGuard = () => {
   if (subscription) {
     subscription.unsubscribe();
     subscription = null;
-    console.log('[TIỀN ĐÌNH] Đã tắt cảm biến.');
   }
 };

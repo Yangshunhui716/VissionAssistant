@@ -1,11 +1,11 @@
-import { useState, useRef, useCallback } from 'react';
+import { useState, useRef, useCallback, useEffect } from 'react';
 import { Platform } from 'react-native';
 import { useTensorflowModel } from 'react-native-fast-tflite';
 import { useFrameOutput } from 'react-native-vision-camera';
 import { scheduleOnRN } from 'react-native-worklets';
 import TextRecognition from '@react-native-ml-kit/text-recognition';
 
-import { resize, createBmpBase64 } from '../utils/frameProcessor/frameResizer';
+import { resize, createBmpBase64 } from '../utils/frameProcessor/framePreprocessor';
 import { parseYoloOutput } from '../utils/recognitionProcessor/yoloParser';
 import {
   OBJECT365_LABELS_VI,
@@ -20,7 +20,10 @@ import {
   processSearch,
   resetSearch,
 } from '../utils/recognitionProcessor/targetFinder';
-import { processCurrencyScan, resetCurrencyScan } from '../utils/recognitionProcessor/currencyScan';
+import {
+  processCurrencyScan,
+  resetCurrencyScan,
+} from '../utils/recognitionProcessor/currencyScan';
 import {
   getDepthFromMidas,
   translateDepthToText,
@@ -30,6 +33,7 @@ import { gridWeighting } from '../utils/obstacleAnalyzer/gridWeighting';
 import { updateTracks } from '../utils/obstacleAnalyzer/objectTracker';
 import { analyzeThreat } from '../utils/obstacleAnalyzer/threatAnalyzer';
 import { analyzeCameraQuality } from '../utils/frameProcessor/frameAnalyzer';
+import { useSharedValue } from 'react-native-reanimated';
 
 export const IS_DEBUG = false;
 
@@ -44,9 +48,13 @@ const aiDelegates =
   Platform.OS === 'ios' ? ['core-ml', 'metal'] : ['android-gpu'];
 const yoloBuffer = new Float32Array(YOLO_SIZE * YOLO_SIZE * 3);
 const midasBuffer = new Float32Array(MIDAS_SIZE * MIDAS_SIZE * 3);
+
 let lastRealDepth = 0;
 let lastRealArea = 0;
 let lastTargetName = '';
+let lastSpokenBaseName = '';
+let lastSpokenDepthLevel = 0;
+let lastSpokenTime = 0;
 
 export const useVision = (
   photoOutput,
@@ -62,7 +70,8 @@ export const useVision = (
   onThreatDetected,
   onFrameQuality,
   isShaking,
-  setIsScanningText,
+  captureTrigger,
+  onCaptureReportComplete,
 ) => {
   const yoloObjModel = useTensorflowModel(
     require('../assets/models/yolo26n-objv1-150-320.tflite'),
@@ -77,24 +86,23 @@ export const useVision = (
     aiDelegates,
   );
 
-  const [fps, setFps] = useState(0);
-  const [objectList, setObjectList] = useState([]);
   const [detectedObj, setDetectedObj] = useState({
     name: '',
     depth: '',
     motion: '',
   });
 
-  const isProcessingTextRef = useRef(false);
+  const [fps, setFps] = useState(0);
+  const updateFps = newFps => {
+    setFps(prev => (prev === newFps ? prev : newFps));
+  };
 
   const [debugImage, setDebugImage] = useState(null);
   const updateDebugImage = b64 => {
     setDebugImage(b64);
   };
 
-  const updateFps = newFps => {
-    setFps(prev => (prev === newFps ? prev : newFps));
-  };
+  const [objectList, setObjectList] = useState([]);
   const updateList = names => {
     setObjectList(prev => {
       if (prev.length === names.length && prev.every((v, i) => v === names[i]))
@@ -102,6 +110,7 @@ export const useVision = (
       return names;
     });
   };
+
   const clearAlert = () => {
     setDetectedObj(prev => {
       if (prev.name === '') return prev;
@@ -109,8 +118,12 @@ export const useVision = (
     });
   };
 
-  const lastSpokenThreatRef = useRef('');
-  const lastSpokenTimeRef = useRef(0);
+  const getDepthLevel = (text) => {
+    if (text === 'dưới nửa mét') return 3;
+    if (text === 'khoảng 1 mét') return 2;
+    if (text === 'khoảng 2 mét') return 1;
+    return 0;
+  };
 
   const updateAlert = (
     baseName,
@@ -136,7 +149,7 @@ export const useVision = (
         const estimatedRawDepth = lastRealDepth * Math.sqrt(areaRatio);
         depthText = translateDepthToText(estimatedRawDepth);
       } else {
-        depthText = 'Đang đo...';
+        depthText = 'Đang đo';
       }
     }
 
@@ -147,41 +160,45 @@ export const useVision = (
         prev.motion === motion
       )
         return prev;
-      return { name: displayAlertName, depth: depthText, motion };
+      return { name: displayAlertName, depth: depthText, motion: motion };
     });
 
-    if (
-      depthText === 'dưới nửa mét' ||
-      depthText === 'khoảng 1 mét' ||
-      depthText === 'khoảng 2 mét'
-    ) {
+    const currentDepthLevel = getDepthLevel(depthText);
+
+    if (currentDepthLevel > 0) {
       const now = Date.now();
-      if (
-        displayAlertName !== lastSpokenThreatRef.current ||
-        now - lastSpokenTimeRef.current > 4000
-      ) {
-        lastSpokenThreatRef.current = displayAlertName;
-        lastSpokenTimeRef.current = now;
-        onThreatDetected(`${displayAlertName}, cách ${depthText}`);
+      const isDifferentTarget = baseName !== lastSpokenBaseName;
+      const isCloser = currentDepthLevel > lastSpokenDepthLevel;
+      const isTimeUp = now - lastSpokenTime > 4000;
+
+      if (isDifferentTarget || isCloser || isTimeUp) {
+        lastSpokenBaseName = baseName;
+        lastSpokenDepthLevel = currentDepthLevel;
+        lastSpokenTime = now;
+        onThreatDetected(`${displayAlertName}, cách ${depthText}, ${motion}`);
+      }
+    } else {
+      if (Date.now() - lastSpokenTime > 2000) {
+        lastSpokenDepthLevel = 0;
       }
     }
   };
 
-  const runTextRecognition = useCallback(async () => {
-    setIsScanningText(false);
+  const isProcessingText = useSharedValue(false);
 
-    if (isProcessingTextRef.current) {
-      return;
+  useEffect(() => {
+    if (isScanningText) {
+      isProcessingText.value = true;
     }
+  }, [isScanningText, isProcessingText]);
 
+  const runTextRecognition = useCallback(async () => {
     if (!photoOutput) {
       onTextScanComplete('');
       return;
     }
 
     try {
-      isProcessingTextRef.current = true;
-      const captureStart = Date.now();
       const { filePath } = await photoOutput.capturePhotoToFile(
         {
           flashMode: 'off',
@@ -194,29 +211,15 @@ export const useVision = (
         : `file://${filePath}`;
 
       const result = await TextRecognition.recognize(imageUri);
-
-      setDebugImage(imageUri);
+      if (IS_DEBUG) setDebugImage(imageUri);
 
       const text = result?.text?.trim() || '';
-
-      if (text) {
-        onTextScanComplete(text);
-      } else {
-        onTextScanComplete('');
-      }
-
-    } catch (error) {
-      console.error('[OCR] ERROR =', error);
-      console.error(
-        '[OCR] ERROR STRING =',
-        error instanceof Error ? error.message : String(error),
-      );
-
+      onTextScanComplete(text);
+    } catch (e) {
+      console.error('Error OCR: ', e);
       onTextScanComplete('');
-
     } finally {
-      setIsScanningText(false);
-      isProcessingTextRef.current = false;
+      isProcessingText.value = false;
     }
   }, [photoOutput, onTextScanComplete]);
 
@@ -239,6 +242,12 @@ export const useVision = (
               globalThis.__lastMidasTarget = '';
               scheduleOnRN(clearAlert);
               return;
+            }
+
+            let forceCapture = false;
+            if (IS_DEBUG && captureTrigger && captureTrigger.value) {
+              forceCapture = true;
+              captureTrigger.value = false;
             }
 
             const frameData = new Uint8Array(frame.getPixelBuffer());
@@ -264,14 +273,15 @@ export const useVision = (
               return;
             }
 
-            if (isScanningText) {
+            if (isProcessingText.value) {
+              isProcessingText.value = false;
+
               if (globalThis.__lastThreatTarget !== '') {
                 globalThis.__lastThreatTarget = '';
                 scheduleOnRN(clearAlert);
               }
-
+              
               scheduleOnRN(runTextRecognition);
-
               return;
             }
 
@@ -410,7 +420,7 @@ export const useVision = (
 
             const hasOnDemandObjectTask = searchTarget || isScanningGeneral;
 
-            if (!hasOnDemandObjectTask && !isObstacleActive) {
+            if (!hasOnDemandObjectTask && !isObstacleActive && !forceCapture) {
               if (globalThis.__lastThreatTarget !== '') {
                 globalThis.__lastThreatTarget = '';
                 scheduleOnRN(clearAlert);
@@ -424,6 +434,8 @@ export const useVision = (
             ) {
               globalThis.__lastProcessTime = now;
 
+              let reportData = forceCapture ? {} : null;
+
               const yoloResized = resize(
                 frameData,
                 frame.width,
@@ -434,6 +446,7 @@ export const useVision = (
                 'CHW',
                 frame.orientation,
                 frame.isMirrored,
+                reportData
               );
 
               const objectOutputs = yoloObjModel.model.runSync([
@@ -446,6 +459,14 @@ export const useVision = (
               );
 
               if (IS_DEBUG) {
+                if (parsed.length > 0) {
+                  const currentNames = parsed.map(
+                    obj => OBJECT365_LABELS_VI[obj.labelIdx],
+                  );
+                  scheduleOnRN(updateList, [...new Set(currentNames)]);
+                } else {
+                  scheduleOnRN(updateList, []);
+                }
                 if (
                   !globalThis.__lastDumpTime ||
                   now - globalThis.__lastDumpTime > 3000
@@ -457,8 +478,57 @@ export const useVision = (
                     YOLO_SIZE,
                     'CHW',
                     parsed,
+                    OBJECT365_LABELS_VI
                   );
                   scheduleOnRN(updateDebugImage, b64);
+                }
+
+                if (forceCapture && reportData) {
+                  const yoloB64 = createBmpBase64(yoloBuffer, YOLO_SIZE, YOLO_SIZE, 'CHW', parsed, OBJECT365_LABELS_VI);
+
+                  const midasResized = resize(
+                    frameData, frame.width, frame.height, MIDAS_SIZE, MIDAS_SIZE,
+                    midasBuffer, 'HWC', frame.orientation, frame.isMirrored,
+                  );
+                  const midasOutputs = midasModel.model.runSync([midasResized.buffer]);
+                  const rawDepth = new Float32Array(midasOutputs[0]);
+
+                  const depthPixels = new Uint8Array(MIDAS_SIZE * MIDAS_SIZE * 3);
+                  let minDepth = 999999; let maxDepth = -999999;
+                  for (let i = 0; i < rawDepth.length; i++) {
+                    if (rawDepth[i] < minDepth) minDepth = rawDepth[i];
+                    if (rawDepth[i] > maxDepth) maxDepth = rawDepth[i];
+                  }
+                  const depthRange = maxDepth - minDepth || 1;
+                  
+                  for (let i = 0; i < rawDepth.length; i++) {
+                    const v = (rawDepth[i] - minDepth) / depthRange;
+                    const r = Math.round(255 * Math.max(0, Math.min(1, 1.5 - Math.abs(4 * v - 3))));
+                    const g = Math.round(255 * Math.max(0, Math.min(1, 1.5 - Math.abs(4 * v - 2))));
+                    const b = Math.round(255 * Math.max(0, Math.min(1, 1.5 - Math.abs(4 * v - 1))));
+
+                    depthPixels[i * 3] = r;
+                    depthPixels[i * 3 + 1] = g;
+                    depthPixels[i * 3 + 2] = b;
+                  }
+
+                  const scaleFactor = MIDAS_SIZE / YOLO_SIZE;
+                  const scaledBoxes = parsed.map(box => ({
+                    x: box.x * scaleFactor,
+                    y: box.y * scaleFactor,
+                    width: box.width * scaleFactor,
+                    height: box.height * scaleFactor,
+                    labelIdx: box.labelIdx, 
+                    score: box.score
+                  }));
+
+                  const depthB64 = createBmpBase64(depthPixels, MIDAS_SIZE, MIDAS_SIZE, 'HWC', scaledBoxes, null);
+
+                  scheduleOnRN(
+                    onCaptureReportComplete, 
+                    reportData.b1, reportData.b2, reportData.b3, reportData.b4, 
+                    yoloB64, depthB64
+                  );
                 }
               }
 
@@ -521,21 +591,9 @@ export const useVision = (
                 const trackedObstacles = updateTracks(
                   parsed,
                   now,
-                  OBJECT365_LABELS_VI,
                   OBSTACLE_WHITELIST,
                   YOLO_SIZE,
                 );
-
-                if (IS_DEBUG) {
-                  if (trackedObstacles.length > 0) {
-                    const currentNames = trackedObstacles.map(
-                      obj => OBJECT365_LABELS_VI[obj.labelIdx],
-                    );
-                    scheduleOnRN(updateList, [...new Set(currentNames)]);
-                  } else {
-                    scheduleOnRN(updateList, []);
-                  }
-                }
 
                 const { mostDangerousTarget, targetName } = gridWeighting(
                   trackedObstacles,
@@ -554,7 +612,6 @@ export const useVision = (
                     mostDangerousTarget,
                     targetName,
                     trackedObstacles,
-                    OBJECT365_LABELS_VI,
                     YOLO_SIZE,
                   );
                   globalThis.__lastThreatTarget = targetName;
@@ -607,7 +664,7 @@ export const useVision = (
             }
           }
         } catch (e) {
-          console.error('Lỗi Worklet:', String(e));
+          console.error('Error Worklet:', String(e));
         } finally {
           frame.dispose();
         }
@@ -619,6 +676,7 @@ export const useVision = (
       isScanningGeneral,
       isScanningCurrency,
       isScanningText,
+      isProcessingText,
       runTextRecognition,
     ],
   );

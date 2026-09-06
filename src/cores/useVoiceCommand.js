@@ -14,6 +14,8 @@ const SILENCE_TIMEOUT_MS = 1500;
 const POST_COMMAND_COOLDOWN_MS = 3500;
 const MIN_COMMAND_LENGTH = 2;
 
+const WAKE_LOCK_MS = 4500;
+
 export const useVoiceCommand = (
   hasMicPermission,
   playFeedback,
@@ -29,6 +31,7 @@ export const useVoiceCommand = (
   const timeoutRef = useRef(null);
   const isModelLoaded = useRef(false);
   const isSwitching = useRef(false);
+  const ignoreWakeRef = useRef(0);
 
   const changeState = (newState, promptObj) => {
     stateRef.current = newState;
@@ -40,6 +43,8 @@ export const useVoiceCommand = (
     try {
       if (timeoutRef.current) clearTimeout(timeoutRef.current);
       isSwitching.current = true;
+      ignoreWakeRef.current = Date.now() + WAKE_LOCK_MS;
+      
       changeState('SLEEP', PROMPTS.system.sleeping);
 
       if (isModelLoaded.current) {
@@ -48,7 +53,7 @@ export const useVoiceCommand = (
       }
       isSwitching.current = false;
     } catch (e) {
-      console.log('Lỗi Vosk Guard:', e);
+      console.log('Error Vosk Guard: ', e);
       isSwitching.current = false;
     }
   };
@@ -78,7 +83,7 @@ export const useVoiceCommand = (
     isSwitching.current = true;
     await vosk.stop();
 
-    if (IS_DEBUG) console.log('>> LỆNH ĐÃ CHỐT:', finalText);
+    if (IS_DEBUG) console.log('LỆNH ĐÃ CHỐT: ', finalText);
     const { intent, targetName } = analyzeCommand(finalText);
 
     if (intent === 'OBSTACLE_ON') {
@@ -136,9 +141,10 @@ export const useVoiceCommand = (
       const text = (res || '').toString().toLowerCase().trim();
       if (!text) return;
 
-      if (IS_DEBUG) console.log('>> KẾT QUẢ VOSK:', text);
+      if (IS_DEBUG) console.log('KẾT QUẢ VOSK: ', text);
 
       if (stateRef.current === 'SLEEP') {
+        if (Date.now() < ignoreWakeRef.current) return;
         if (text.match(/(xin chào|trợ lý)/)) switchToListening();
       } else if (stateRef.current === 'LISTENING') {
         if (timeoutRef.current) clearTimeout(timeoutRef.current);

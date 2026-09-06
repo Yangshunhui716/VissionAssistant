@@ -61,7 +61,7 @@ export const parseYoloOutput = (rawOutputs, yoloSize, isDebug = false) => {
       .join('\n');
 
     console.log(
-      `\n=== YOLO đã phát hiện ${detections.length} vật thể ===\n${logMessage}`,
+      `\n=== YOLO PHÁT HIỆN ${detections.length} VẬT THỂ ===\n${logMessage}`,
     );
   }
 

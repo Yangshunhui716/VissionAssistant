@@ -1,52 +1,19 @@
 import Fuse from 'fuse.js';
 import { OBJECT365_LABELS_VI } from '../recognitionProcessor/labels';
 import { ALIAS_MAP } from './grammar';
-
-const IS_DEBUG = true;
+import { IS_DEBUG } from '../debug/debug';
 
 const NGRAM_MAX_WORDS = 3;
-const INTENT_FUSE_THRESH = 0.3;
 const OBJECT_FUSE_THRESH = 0.45;
-const INTENT_ACCEPT_SCORE = 0.4;
 const MIN_CHAR_MATCH = 2;
 const SINGLE_WORD_SCORE = 0.15;
 const MULTI_WORD_SCORE = 0.35;
 const EARLY_EXIT_SCORE = 0.25;
 
-const INTENT_DICTIONARY = [
-  { intent: 'FIND', keywords: ['tìm', 'kiếm', 'ở đâu'] },
-  {
-    intent: 'SCAN_GENERAL',
-    keywords: ['có gì', 'nhận diện', 'phía trước', 'quét', 'trước mắt', 'nhìn'],
-  },
-  {
-    intent: 'SCAN_CURRENCY',
-    keywords: ['đọc tiền', 'quét tiền', 'nhận diện tiền', 'tờ này', 'mệnh giá'],
-  },
-  {
-    intent: 'SCAN_TEXT',
-    keywords: ['đọc chữ', 'quét chữ', 'đọc văn bản', 'có chữ'],
-  },
-  {
-    intent: 'OBSTACLE_OFF',
-    keywords: ['tắt cảnh báo', 'ngừng cảnh báo', 'vật cản'],
-  },
-  {
-    intent: 'OBSTACLE_ON',
-    keywords: ['bật cảnh báo', 'mở cảnh báo', 'vật cản'],
-  },
-];
-
 const PRECOMPILED_ALIASES = Object.keys(ALIAS_MAP).map(alias => ({
   regex: new RegExp(`\\b${alias}\\b`, 'g'),
   replacement: ALIAS_MAP[alias],
 }));
-
-const intentFuse = new Fuse(INTENT_DICTIONARY, {
-  includeScore: true,
-  threshold: INTENT_FUSE_THRESH,
-  keys: ['keywords'],
-});
 
 const objectFuse = new Fuse(OBJECT365_LABELS_VI, {
   includeScore: true,
@@ -76,44 +43,44 @@ export const analyzeCommand = rawText => {
     );
   }
 
-  if (IS_DEBUG) console.log('SAU KHI FUSE: ', text);
+  if (IS_DEBUG) console.log('SAU KHI XỬ LÝ ALIAS: ', text);
 
   let detectedIntent = null;
 
-  if (text.includes('bật cảnh báo') || text.includes('mở cảnh báo')) {
-    detectedIntent = 'OBSTACLE_ON';
-  } else if (text.includes('tắt cảnh báo') || text.includes('ngừng cảnh báo')) {
+  if (/(tắt|ngừng|dừng|hủy).*(vật cản|cảnh báo)/i.test(text)) {
     detectedIntent = 'OBSTACLE_OFF';
-  } else if (text.includes('tìm') || text.includes('kiếm') || text.includes('ở đâu')) {
-    detectedIntent = 'FIND';
-  } else if (text.includes('tiền') || text.includes('mệnh giá')) { 
+  } else if (/(bật|mở|chạy).*(vật cản|cảnh báo)/i.test(text) || /(nhận diện|quét).*(vật cản|chướng ngại)/i.test(text)) {
+    detectedIntent = 'OBSTACLE_ON';
+  } else if (/(đọc|quét|nhận diện|kiểm tra|xem).*(tiền|tờ này|mệnh giá)/i.test(text)) {
     detectedIntent = 'SCAN_CURRENCY';
-  } else if (text.includes('chữ') || text.includes('văn bản')) { 
+  } else if (/(đọc|quét|nhận diện|xem).*(chữ|văn bản|tài liệu|trang giấy|câu này)/i.test(text)) {
     detectedIntent = 'SCAN_TEXT';
-  } else if (text.includes('có gì') || text.includes('quét') || text.includes('phía trước')) {
-    detectedIntent = 'SCAN_GENERAL';
-  } else {
-    const chunks = getNGrams(text).sort((a, b) => b.length - a.length);
-    for (const chunk of chunks) {
-      const intentResults = intentFuse.search(chunk);
-      if (
-        intentResults.length > 0 &&
-        intentResults[0].score <= INTENT_ACCEPT_SCORE
-      ) {
-        detectedIntent = intentResults[0].item.intent;
-        break;
-      }
+  } else if (/(có gì|xung quanh|phía trước|nhìn|quét|nhận diện).*(đồ vật|phía trước|xung quanh)?/i.test(text)) {
+    if (!/(tìm|kiếm|ở đâu)/i.test(text)) {
+      detectedIntent = 'SCAN_GENERAL';
     }
+  } else if (/(tìm|kiếm|ở đâu)/i.test(text)) {
+    detectedIntent = 'FIND';
   }
 
   if (detectedIntent === 'OBSTACLE_ON') return { intent: 'OBSTACLE_ON' };
   if (detectedIntent === 'OBSTACLE_OFF') return { intent: 'OBSTACLE_OFF' };
+  if (detectedIntent === 'SCAN_GENERAL') return { intent: 'SCAN_GENERAL' };
+  if (detectedIntent === 'SCAN_CURRENCY') return { intent: 'SCAN_CURRENCY' };
+  if (detectedIntent === 'SCAN_TEXT') return { intent: 'SCAN_TEXT' };
 
   if (detectedIntent === 'FIND') {
     let bestMatchName = null;
     let bestScore = 1;
 
-    const chunks = getNGrams(text).sort((a, b) => b.length - a.length);
+    let cleanSearchText = text.replace(/(tìm|kiếm|cho tui|cho tôi|ở đâu|giúp|nhé|cái|chiếc|con|quả)/gi, '').trim();
+
+    if (cleanSearchText.length < MIN_CHAR_MATCH) {
+      return { intent: 'INVALID' };
+    }
+
+    const chunks = getNGrams(cleanSearchText).sort((a, b) => b.length - a.length);
+    
     const prioritizedChunks = [
       ...chunks.filter(c => c.includes(' ') && c.length >= MIN_CHAR_MATCH),
       ...chunks.filter(c => !c.includes(' ') && c.length >= MIN_CHAR_MATCH),
@@ -123,9 +90,7 @@ export const analyzeCommand = rawText => {
       const results = objectFuse.search(chunk);
       if (results.length > 0) {
         const match = results[0];
-        const allowedScore = !chunk.includes(' ')
-          ? SINGLE_WORD_SCORE
-          : MULTI_WORD_SCORE;
+        const allowedScore = !chunk.includes(' ') ? SINGLE_WORD_SCORE : MULTI_WORD_SCORE;
 
         if (match.score < bestScore && match.score <= allowedScore) {
           bestScore = match.score;
@@ -135,14 +100,11 @@ export const analyzeCommand = rawText => {
         }
       }
     }
+    
     return bestMatchName
       ? { intent: 'FIND', targetName: bestMatchName }
       : { intent: 'INVALID' };
   }
-
-  if (detectedIntent === 'SCAN_GENERAL') return { intent: 'SCAN_GENERAL' };
-  if (detectedIntent === 'SCAN_CURRENCY') return { intent: 'SCAN_CURRENCY' };
-  if (detectedIntent === 'SCAN_TEXT') return { intent: 'SCAN_TEXT' };
 
   return { intent: 'INVALID' };
 };

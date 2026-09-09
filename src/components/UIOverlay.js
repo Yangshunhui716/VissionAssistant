@@ -1,24 +1,15 @@
 import { memo } from 'react';
 import { View, StyleSheet } from 'react-native';
-import {
-  Text,
-  Surface,
-  Icon,
-  TouchableRipple,
-} from 'react-native-paper';
+import { Text, Surface, Icon, TouchableRipple } from 'react-native-paper';
 
 /** @type {React.FC<any>} */
 export const UIOverlay = memo(
   ({
-    fps,
-    objectList,
     detectedObj,
     appState,
     transcript,
-
     activeFunction,
     isObstacleActive,
-
     onObstaclePress,
     onCurrencyPress,
     onObjectPress,
@@ -38,11 +29,7 @@ export const UIOverlay = memo(
     const isObjectDisabled = isFunctionActive && !isObjectActive;
     const isTextDisabled = isFunctionActive && !isTextActive;
 
-    const accentColor = isListening
-      ? '#16A34A'
-      : isWaking
-      ? '#D97706'
-      : '#6B7280';
+    const accentColor = isListening ? '#16A34A' : isWaking ? '#D97706' : '#6B7280';
 
     const stateText = isFunctionActive
       ? activeFunction
@@ -220,22 +207,6 @@ export const UIOverlay = memo(
             </TouchableRipple>
           </Surface>
         </View>
-
-        {fps != null && (
-          <View style={styles.fps}>
-            <Text style={styles.fpsText}>FPS: {fps}</Text>
-          </View>
-        )}
-
-        {objectList?.length > 0 && (
-          <View style={styles.debugList}>
-            {objectList.map((name, index) => (
-              <Text key={`${name}-${index}`} style={styles.debugText}>
-                {name}
-              </Text>
-            ))}
-          </View>
-        )}
       </View>
     );
   },
@@ -266,21 +237,6 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     textAlign: 'center',
     lineHeight: 23,
-  },
-  detectionContainer: {
-    position: 'absolute',
-    top: 100,
-    left: 20,
-    right: 20,
-    alignItems: 'center',
-  },
-  detectionBox: {
-    minWidth: 150,
-    paddingHorizontal: 20,
-    paddingVertical: 12,
-    borderRadius: 16,
-    backgroundColor: 'rgba(17,24,39,0.90)',
-    alignItems: 'center',
   },
   detectionTitle: {
     color: 'red',
@@ -385,23 +341,4 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   micPressable: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  fps: {
-    position: 'absolute',
-    top: 110,
-    left: 10,
-    paddingHorizontal: 8,
-    paddingVertical: 5,
-    borderRadius: 7,
-    backgroundColor: 'rgba(0,0,0,0.72)',
-  },
-  fpsText: { color: '#00FF00', fontSize: 12, fontWeight: '700' },
-  debugList: {
-    position: 'absolute',
-    top: 160,
-    right: 10,
-    padding: 7,
-    borderRadius: 7,
-    backgroundColor: 'rgba(0,0,0,0.65)',
-  },
-  debugText: { color: 'yellow', fontSize: 12 },
 });

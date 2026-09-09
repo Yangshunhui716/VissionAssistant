@@ -1,13 +1,14 @@
 export const PROMPTS = {
   system: {
-    sleeping: { ui: 'Đang ngủ... (Gọi "Xin chào" / "Trợ lý")', tts: 'Tôi đang ngủ! Gọi "Xin chào" hoặc "Trợ lý" để đánh thức', priority: 3 },
+    sleeping: { ui: 'Đang ngủ...\n(Gọi "Xin chào" / "Trợ lý")', tts: 'Tôi đang ngủ! Gọi "Xin chào" hoặc "Trợ lý" để đánh thức', priority: 3 },
     wakingUp: { ui: 'Đã thức! Đang chuẩn bị nghe lệnh...', tts: null, priority: 3 },
     listening: { ui: 'Đang nghe lệnh...', tts: 'Tôi đang nghe lệnh...', priority: 3 },
   },
 
   obstacle: {
-    on: { ui: 'Đã BẬT nhận diện vật cản', tts: 'Đã bật chế độ nhận diện vật cản', priority: 3 },
+    on: { ui: 'Đã BẬT nhận diện vật cản', tts: 'Đã bật chế độ nhận diện vật cản! Hãy gọi tôi dậy nếu cần sử dụng chức năng khác', priority: 3 },
     off: { ui: 'Đã TẮT nhận diện vật cản', tts: 'Đã tắt chế độ nhận diện vật cản', priority: 3 },
+
     threat: message => ({ ui: null, tts: `Chú ý! ${message}`, priority: 1 }),
   },
 

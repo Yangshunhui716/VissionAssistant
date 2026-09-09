@@ -1,11 +1,14 @@
 import { getDepthFromMidas, translateDepthToText } from './depthCalculator';
 import { getBoxCenters } from './geometryUtils';
 
+const LEFT_ZONE_RATIO = 1 / 3;
+const RIGHT_ZONE_RATIO = 2 / 3;
+
 export const getDirection = (box, bounds) => {
   'worklet';
   const { cx } = getBoxCenters(box);
-  const leftBorder = bounds.padX + bounds.newW / 3;
-  const rightBorder = bounds.padX + (bounds.newW * 2) / 3;
+  const leftBorder = bounds.padX + bounds.newW * LEFT_ZONE_RATIO;
+  const rightBorder = bounds.padX + bounds.newW * RIGHT_ZONE_RATIO;
 
   if (cx < leftBorder) return 'bên trái';
   if (cx > rightBorder) return 'bên phải';

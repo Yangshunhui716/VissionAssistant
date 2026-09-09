@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useEffect, useRef } from 'react';
 import * as vosk from 'react-native-vosk';
 import {
   COMMAND_GRAMMAR,
@@ -6,14 +6,11 @@ import {
 } from '../utils/languageProcessor/grammar';
 import { analyzeCommand } from '../utils/languageProcessor/intentAnalyzer';
 import { PROMPTS } from '../utils/languageProcessor/feedbackPrompts';
+import { IS_DEBUG } from '../utils/debug/debug';
 
-const IS_DEBUG = false;
-
-const MODEL_SWITCH_DELAY_MS = 600;
 const SILENCE_TIMEOUT_MS = 1500;
 const POST_COMMAND_COOLDOWN_MS = 3500;
 const MIN_COMMAND_LENGTH = 2;
-
 const WAKE_LOCK_MS = 4500;
 
 export const useVoiceCommand = (
@@ -66,7 +63,6 @@ export const useVoiceCommand = (
 
       changeState('WAKING_UP', PROMPTS.system.wakingUp);
       await vosk.stop();
-      await new Promise(resolve => setTimeout(resolve, MODEL_SWITCH_DELAY_MS));
 
       await vosk.start({ grammar: COMMAND_GRAMMAR });
       changeState('LISTENING', PROMPTS.system.listening);

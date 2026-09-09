@@ -90,7 +90,7 @@ export const OBJECT365_LABELS_VI = [
   "máy chiếu", "xúc xích", "bình chữa cháy", "ổ cắm kéo dài", "mặt nạ", 
   "bóng tennis", "đũa", "bếp điện", "bánh nướng", "đĩa ném", 
   "ấm đun nước", "bánh mì kẹp thịt", "gậy đánh gôn", "dưa chuột", "ví cầm tay", "máy xay", "kẹp gắp", 
-  "cầu trượt", "xúc xích", "bàn chải", "sữa rửa mặt", "quả xoài", "con hươu", "quả trứng", 
+  "cầu trượt", "bánh mì xúc xích", "bàn chải", "sữa rửa mặt", "quả xoài", "con hươu", "quả trứng", 
   "đàn vĩ cầm", "bút lông", "con tàu", "con gà", "củ hành", "kem", "băng keo", "xe lăn", 
   "quả mận", "xà phòng cục", "cái cân", "dưa hấu", "bắp cải", "cục wifi", "bóng gôn", 
   "quả dứa", "cần cẩu", "xe cứu hỏa", "quả đào", "đàn trung hồ cầm", "giấy nhớ", "xe xích lô", 
@@ -153,23 +153,24 @@ export const OBSTACLE_WHITELIST = [
   109, // hành lý
   112, // xe đẩy hàng
   117, // tủ lạnh
+  118, // xe lửa (Đã thêm: Cảnh báo cực kỳ nguy hiểm ở gác chắn)
   120, // xe công trình
   121, // cái lều
   131, // thùng máy tính
   136, // bồn cầu
   137, // xe đẩy em bé
-  143, // camera an ninh
   146, // con mèo
   151, // xe thể thao
   155, // biển dừng lại
+  159, // lò sưởi (Đã thêm: Có thể gây bỏng/vấp ngã)
   160, // máy giặt
   177, // vali
   179, // cái thang
   187, // trụ cứu hỏa
   191, // bình chữa cháy
+  192, // ổ cắm kéo dài (Đã thêm: Sát thủ vấp ngã hàng đầu)
   206, // cầu trượt
   220, // xe lăn
-  226, // cục wifi
   229, // cần cẩu
   230, // xe cứu hỏa
   234, // xe xích lô

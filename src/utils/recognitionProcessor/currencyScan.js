@@ -1,5 +1,6 @@
 const SCAN_SCORE_THRESHOLD = 0.1;
 const CURRENCY_MAX_FRAMES = 3;
+const MIN_APPEARANCE_COUNT = 2;
 
 export const processCurrencyScan = (parsedCurrency, labelsVi) => {
   'worklet';
@@ -42,7 +43,7 @@ export const processCurrencyScan = (parsedCurrency, labelsVi) => {
   
   for (let i = 0; i < validIds.length; i++) {
     const id = validIds[i];
-    if (appearanceCount[id] >= 2) {
+    if (appearanceCount[id] >= MIN_APPEARANCE_COUNT) {
       const qty = finalCounts[id];
       const name = labelsVi[id];
       resultParts.push(`${qty} tờ ${name}`);
@@ -50,7 +51,7 @@ export const processCurrencyScan = (parsedCurrency, labelsVi) => {
   }
 
   if (resultParts.length === 0) return null;
-  return resultParts.join(' và ');
+  return resultParts.join(', ');
 };
 
 export const resetCurrencyScan = () => {

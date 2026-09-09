@@ -1,5 +1,5 @@
 import { useEffect, useCallback, useState } from 'react';
-import { StyleSheet, View, Image, Platform } from 'react-native';
+import { StyleSheet, View, Platform } from 'react-native';
 import {
   Camera,
   useCameraDevice,
@@ -9,14 +9,16 @@ import {
 } from 'react-native-vision-camera';
 import { useSharedValue } from 'react-native-reanimated';
 import RNFS from 'react-native-fs';
-import { Button } from 'react-native-paper';
+
+import { IS_DEBUG } from './utils/debug/debug';
 
 import { useFeedbackController } from './cores/useFeedbackController';
 import { useVoiceCommand } from './cores/useVoiceCommand';
-import { useVision, IS_DEBUG } from './cores/useVision';
+import { useVision } from './cores/useVision';
 
-import { UIOverlay } from './components/UIOverlay';
 import { StatusScreen } from './components/StatusScreen';
+import { UIOverlay } from './components/UIOverlay';
+import { DebugOverlay } from './components/DebugOverlay';
 
 import {
   startMotionGuard,
@@ -61,6 +63,14 @@ const App: React.FC = () => {
     setIsScanningText,
   );
 
+  const notifyStateAfterClose = () => {
+    if (isObstacleActive) {
+      playFeedback(PROMPTS.obstacle.on);
+    } else {
+      playFeedback(PROMPTS.system.sleeping);
+    }
+  };
+
   const handleSearchComplete = useCallback(
     (isFound: boolean, spatialMessage: string) => {
       setTargetToFind(null);
@@ -76,6 +86,7 @@ const App: React.FC = () => {
       if (foundItems && foundItems.length > 0)
         playFeedback(PROMPTS.scan.result(foundItems[0]));
       else playFeedback(PROMPTS.scan.empty);
+      notifyStateAfterClose();
     },
     [playFeedback, setIsScanningGeneral],
   );
@@ -111,7 +122,7 @@ const App: React.FC = () => {
       haptics.error();
       playFeedback(PROMPTS.alert.frameQuality(frameQualityReason));
     },
-    [playFeedback, haptics],
+    [playFeedback, haptics, isObstacleActive],
   );
 
   const handleCaptureReportComplete = useCallback(
@@ -160,7 +171,11 @@ const App: React.FC = () => {
           'base64',
         );
         console.log(`Đã lưu 6 ảnh vào:\n${dir}`);
-        playFeedback({ ui: `Đã lưu 6 ảnh vào:\n${dir}`, tts: null, priority: 1 });
+        playFeedback({
+          ui: `Đã lưu 6 ảnh vào:\n${dir}`,
+          tts: null,
+          priority: 1,
+        });
       } catch (e) {
         console.error('Lỗi lưu ảnh:', e);
       }
@@ -227,7 +242,7 @@ const App: React.FC = () => {
   if (camera == null)
     return <StatusScreen message="Đang khởi động Camera..." isLoading={true} />;
   if (!isModelsLoaded)
-    return <StatusScreen message="Đang khởi động AI..." isLoading={true} />;
+    return <StatusScreen message="Đang khởi động Trợ lý..." isLoading={true} />;
 
   return (
     <View style={styles.container}>
@@ -239,42 +254,33 @@ const App: React.FC = () => {
         resizeMode="contain"
       />
 
-      {IS_DEBUG && debugImage && (
-        <View style={styles.debugContainer}>
-          <Image
-            source={{ uri: debugImage }}
-            style={styles.debugImg}
-            resizeMode="contain"
-          />
-        </View>
-      )}
-
       {IS_DEBUG && (
-        <Button
-          mode="contained"
-          buttonColor="#EF4444"
-          icon="camera"
-          style={styles.captureBtn}
-          labelStyle={styles.captureBtnText}
-          onPress={() => {
+        <DebugOverlay
+          fps={fps}
+          objectList={objectList}
+          debugImage={debugImage}
+          onCapturePress={() => {
             playFeedback({ ui: 'Đang chụp...', tts: 'Tách', priority: 1 });
             captureTrigger.value = true;
           }}
-        >
-          LẤY ẢNH
-        </Button>
+        />
       )}
 
       <UIOverlay
-        fps={IS_DEBUG ? fps : null}
-        objectList={IS_DEBUG ? objectList : []}
         detectedObj={detectedObj}
         appState={appState}
         transcript={uiTranscript}
         activeFunction={activeFunction}
         isObstacleActive={isObstacleActive}
         onObstaclePress={() => {
-          setIsObstacleActive(!isObstacleActive);
+          if (!isObstacleActive) {
+            setIsObstacleActive(true);
+            playFeedback(PROMPTS.obstacle.on);
+          } else {
+            setIsObstacleActive(false);
+            playFeedback(PROMPTS.obstacle.off);
+            playFeedback(PROMPTS.system.sleeping);
+          }
         }}
         onCurrencyPress={() => {
           if (!isScanningCurrency) {
@@ -282,8 +288,11 @@ const App: React.FC = () => {
             setIsScanningGeneral(false);
             setIsScanningText(false);
             setTargetToFind(null);
+            if (isObstacleActive) playFeedback(PROMPTS.obstacle.off);
+            playFeedback(PROMPTS.currency.start);
           } else {
             setIsScanningCurrency(false);
+            notifyStateAfterClose();
           }
         }}
         onObjectPress={() => {
@@ -292,8 +301,11 @@ const App: React.FC = () => {
             setIsScanningCurrency(false);
             setIsScanningText(false);
             setTargetToFind(null);
+            if (isObstacleActive) playFeedback(PROMPTS.obstacle.off);
+            playFeedback(PROMPTS.scan.start);
           } else {
             setIsScanningGeneral(false);
+            notifyStateAfterClose();
           }
         }}
         onTextPress={() => {
@@ -302,8 +314,11 @@ const App: React.FC = () => {
             setIsScanningGeneral(false);
             setIsScanningCurrency(false);
             setTargetToFind(null);
+            if (isObstacleActive) playFeedback(PROMPTS.obstacle.off);
+            playFeedback(PROMPTS.text.start);
           } else {
             setIsScanningText(false);
+            notifyStateAfterClose();
           }
         }}
         onMicPress={() => {
@@ -322,31 +337,6 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: 'black',
-  },
-  debugContainer: {
-    position: 'absolute',
-    bottom: 160,
-    right: 20,
-    zIndex: 100,
-    elevation: 100,
-  },
-  debugImg: {
-    width: 150,
-    height: 150,
-    borderWidth: 3,
-    borderColor: 'lime',
-  },
-  captureBtn: {
-    position: 'absolute',
-    top: 110,
-    right: 10,
-    zIndex: 9999,
-    borderRadius: 8,
-  },
-  captureBtnText: {
-    color: 'white',
-    fontWeight: 'bold',
-    fontSize: 12,
   },
 });
 

@@ -33,7 +33,7 @@ import { analyzeSpatialObject } from '../utils/spatialProcessor/spatialAnalyzer'
 import { gridWeighting } from '../utils/obstacleAnalyzer/gridWeighting';
 import { updateTracks } from '../utils/obstacleAnalyzer/objectTracker';
 import { analyzeThreat } from '../utils/obstacleAnalyzer/threatAnalyzer';
-import { analyzeCameraQuality } from '../utils/frameProcessor/frameAnalyzer';
+import { analyzeFrameQuality } from '../utils/frameProcessor/frameQuality';
 import { IS_DEBUG, createBmpBase64 } from '../utils/debug/debug';
 
 const YOLO_SIZE = 320;
@@ -271,11 +271,10 @@ export const useVision = (
 
             const frameData = new Uint8Array(frame.getPixelBuffer());
 
-            const frameQuality = analyzeCameraQuality(
+            const frameQuality = analyzeFrameQuality(
               frameData,
               frame.width,
               frame.height,
-              frame.bytesPerRow,
             );
 
             if (frameQuality.isBad) {
@@ -399,7 +398,6 @@ export const useVision = (
                 const parsedCurrency = parseYoloOutput(
                   currencyOutputs,
                   YOLO_SIZE,
-                  IS_DEBUG,
                 );
                 const resultCurrencyScan = processCurrencyScan(
                   parsedCurrency,
@@ -481,15 +479,14 @@ export const useVision = (
               const objectOutputs = yoloObjModel.model.runSync([
                 yoloResized.buffer,
               ]);
-              const parsed = parseYoloOutput(
+              const parsedObject = parseYoloOutput(
                 objectOutputs,
                 YOLO_SIZE,
-                IS_DEBUG,
               );
 
               if (IS_DEBUG) {
-                if (parsed.length > 0) {
-                  const currentNames = parsed.map(
+                if (parsedObject.length > 0) {
+                  const currentNames = parsedObject.map(
                     obj => OBJECT365_LABELS_VI[obj.labelIdx],
                   );
                   scheduleOnRN(updateList, [...new Set(currentNames)]);
@@ -506,7 +503,7 @@ export const useVision = (
                     YOLO_SIZE,
                     YOLO_SIZE,
                     'CHW',
-                    parsed,
+                    parsedObject,
                     OBJECT365_LABELS_VI,
                   );
                   scheduleOnRN(updateDebugImage, b64);
@@ -518,7 +515,7 @@ export const useVision = (
                     YOLO_SIZE,
                     YOLO_SIZE,
                     'CHW',
-                    parsed,
+                    parsedObject,
                     OBJECT365_LABELS_VI,
                   );
 
@@ -568,7 +565,7 @@ export const useVision = (
                   }
 
                   const scaleFactor = MIDAS_SIZE / YOLO_SIZE;
-                  const scaledBoxes = parsed.map(box => ({
+                  const scaledBoxes = parsedObject.map(box => ({
                     x: box.x * scaleFactor,
                     y: box.y * scaleFactor,
                     width: box.width * scaleFactor,
@@ -606,7 +603,7 @@ export const useVision = (
 
                 if (!globalThis.__searchLocked) {
                   const searchResult = processSearch(
-                    parsed,
+                    parsedObject,
                     searchTarget,
                     OBJECT365_LABELS_VI,
                     SEARCH_MAX_FRAMES,
@@ -645,7 +642,7 @@ export const useVision = (
                 }
               } else if (isScanningGeneral) {
                 const scanProcess = processGeneralScan(
-                  parsed,
+                  parsedObject,
                   OBJECT365_LABELS_VI,
                   YOLO_SIZE,
                   SCAN_GENERAL_MAX_FRAMES,
@@ -655,7 +652,7 @@ export const useVision = (
                 }
               } else if (isObstacleActive) {
                 const trackedObstacles = updateTracks(
-                  parsed,
+                  parsedObject,
                   now,
                   OBSTACLE_WHITELIST,
                   YOLO_SIZE,

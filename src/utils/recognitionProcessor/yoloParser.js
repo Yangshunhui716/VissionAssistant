@@ -1,6 +1,8 @@
+import { IS_DEBUG } from '../debug/debug';
+
 const CONFIDENCE_THRESHOLD = 0.4;
 
-export const parseYoloOutput = (rawOutputs, yoloSize, isDebug = false) => {
+export const parseYoloOutput = (rawOutputs, yoloSize) => {
   'worklet';
 
   const output = new Float32Array(rawOutputs[0]);
@@ -48,7 +50,7 @@ export const parseYoloOutput = (rawOutputs, yoloSize, isDebug = false) => {
     });
   }
 
-  if (isDebug && detections.length > 0) {
+  if (IS_DEBUG && detections.length > 0) {
     const logMessage = detections
       .map(
         obj =>

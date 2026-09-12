@@ -1,32 +1,46 @@
-const SEARCH_SCORE_THRESHOLD = 0.45;
-
 export const processSearch = (
   parsedDetections,
   searchTarget,
   labelsVi,
-  maxFrames = 3,
+  maxFrames,
+  SCORE_THRESHOLD,
 ) => {
   'worklet';
   globalThis.__searchFrameCount = (globalThis.__searchFrameCount || 0) + 1;
 
   const foundItem = parsedDetections.find(
     item =>
-      labelsVi[item.labelIdx] === searchTarget &&
-      item.score > SEARCH_SCORE_THRESHOLD,
+      labelsVi[item.labelIdx] === searchTarget && item.score > SCORE_THRESHOLD,
   );
 
   if (foundItem) {
     globalThis.__searchFrameCount = 0;
-    return { status: 'FOUND', item: foundItem };
-  } else if (globalThis.__searchFrameCount >= maxFrames) {
-    globalThis.__searchFrameCount = 0;
-    return { status: 'NOT_FOUND', item: null };
-  } else {
-    return { status: 'SEARCHING', item: null };
+
+    return {
+      status: 'FOUND',
+      item: foundItem,
+    };
   }
+
+  if (globalThis.__searchFrameCount >= maxFrames) {
+    globalThis.__searchFrameCount = 0;
+
+    return {
+      status: 'NOT_FOUND',
+      item: null,
+    };
+  }
+
+  return {
+    status: 'SEARCHING',
+    item: null,
+  };
 };
 
 export const resetSearch = () => {
   'worklet';
+
   globalThis.__searchFrameCount = 0;
+  globalThis.__lastSearchTarget = null;
+  globalThis.__searchLocked = false;
 };

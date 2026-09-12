@@ -1,8 +1,9 @@
-import { IS_DEBUG } from '../debug/debug';
-
-const CONFIDENCE_THRESHOLD = 0.4;
-
-export const parseYoloOutput = (rawOutputs, yoloSize) => {
+export const parseYoloOutput = (
+  rawOutputs,
+  yoloSize,
+  CONFIDENCE_THRESHOLD,
+  debugLogging,
+) => {
   'worklet';
 
   const output = new Float32Array(rawOutputs[0]);
@@ -11,14 +12,19 @@ export const parseYoloOutput = (rawOutputs, yoloSize) => {
   const numBoxes = output.length / step;
 
   let isNormalized = true;
+
   if (numBoxes > 0) {
     const firstX2 = output[2];
     const firstY2 = output[3];
-    if (firstX2 > 1 || firstY2 > 1) isNormalized = false;
+
+    if (firstX2 > 1 || firstY2 > 1) {
+      isNormalized = false;
+    }
   }
 
   for (let i = 0; i < numBoxes; i++) {
     const offset = i * step;
+
     const x1 = output[offset + 0];
     const y1 = output[offset + 1];
     const x2 = output[offset + 2];
@@ -26,13 +32,15 @@ export const parseYoloOutput = (rawOutputs, yoloSize) => {
     const score = output[offset + 4];
     const classId = Math.round(output[offset + 5]);
 
-    if (score <= CONFIDENCE_THRESHOLD) continue;
+    if (score <= CONFIDENCE_THRESHOLD) {
+      continue;
+    }
 
-    let left = x1,
-      top = y1,
-      right = x2,
-      bottom = y2;
-      
+    let left = x1;
+    let top = y1;
+    let right = x2;
+    let bottom = y2;
+
     if (isNormalized) {
       left *= yoloSize;
       top *= yoloSize;
@@ -42,7 +50,7 @@ export const parseYoloOutput = (rawOutputs, yoloSize) => {
 
     detections.push({
       labelIdx: classId,
-      score: score,
+      score,
       x: left,
       y: top,
       width: right - left,
@@ -50,7 +58,7 @@ export const parseYoloOutput = (rawOutputs, yoloSize) => {
     });
   }
 
-  if (IS_DEBUG && detections.length > 0) {
+  if (debugLogging && detections.length > 0) {
     const logMessage = detections
       .map(
         obj =>

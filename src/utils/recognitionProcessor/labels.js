@@ -153,7 +153,7 @@ export const OBSTACLE_WHITELIST = [
   109, // hành lý
   112, // xe đẩy hàng
   117, // tủ lạnh
-  118, // xe lửa (Đã thêm: Cảnh báo cực kỳ nguy hiểm ở gác chắn)
+  118, // xe lửa
   120, // xe công trình
   121, // cái lều
   131, // thùng máy tính
@@ -162,13 +162,13 @@ export const OBSTACLE_WHITELIST = [
   146, // con mèo
   151, // xe thể thao
   155, // biển dừng lại
-  159, // lò sưởi (Đã thêm: Có thể gây bỏng/vấp ngã)
+  159, // lò sưởi
   160, // máy giặt
   177, // vali
   179, // cái thang
   187, // trụ cứu hỏa
   191, // bình chữa cháy
-  192, // ổ cắm kéo dài (Đã thêm: Sát thủ vấp ngã hàng đầu)
+  192, // ổ cắm kéo dài
   206, // cầu trượt
   220, // xe lăn
   229, // cần cẩu

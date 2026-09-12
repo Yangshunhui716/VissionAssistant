@@ -8,16 +8,13 @@ import {
   ColorConversionCodes,
 } from 'react-native-fast-opencv';
 
-import { IS_DEBUG } from '../config/runtimeConfig';
-
-const THRESHOLD_DARK = 25;
-const THRESHOLD_GLARE = 230;
-const THRESHOLD_BLUR = 100;
-const THRESHOLD_BLUR_STD = 10;
-
-const ANALYZE_MAX_SIZE = 640;
-
-export function analyzeFrameQuality(srcPixels, width, height) {
+export function analyzeFrameQuality(
+  srcPixels,
+  width,
+  height,
+  frameQualityConfig,
+  debugLogging = false,
+) {
   'worklet';
 
   if (!srcPixels || width <= 0 || height <= 0) {
@@ -26,6 +23,14 @@ export function analyzeFrameQuality(srcPixels, width, height) {
       reason: '',
     };
   }
+
+  const {
+    DARK_THRESHOLD,
+    GLARE_THRESHOLD,
+    BLUR_THRESHOLD,
+    MIN_STDDEV,
+    ANALYZE_MAX_SIZE,
+  } = frameQualityConfig;
 
   let rgba = null;
   let gray = null;
@@ -102,7 +107,7 @@ export function analyzeFrameQuality(srcPixels, width, height) {
       !Number.isFinite(mean) ||
       !Number.isFinite(stddev)
     ) {
-      if (IS_DEBUG) {
+      if (debugLogging) {
         console.log('[QUALITY] Không đọc được Mean/StdDev');
       }
 
@@ -112,8 +117,8 @@ export function analyzeFrameQuality(srcPixels, width, height) {
       };
     }
 
-    if (mean < THRESHOLD_DARK) {
-      if (IS_DEBUG) {
+    if (mean < DARK_THRESHOLD) {
+      if (debugLogging) {
         console.log(
           `[QUALITY] DARK | mean=${mean.toFixed(2)} ` +
             `std=${stddev.toFixed(2)}`,
@@ -126,8 +131,8 @@ export function analyzeFrameQuality(srcPixels, width, height) {
       };
     }
 
-    if (mean > THRESHOLD_GLARE) {
-      if (IS_DEBUG) {
+    if (mean > GLARE_THRESHOLD) {
+      if (debugLogging) {
         console.log(
           `[QUALITY] GLARE | mean=${mean.toFixed(2)} ` +
             `std=${stddev.toFixed(2)}`,
@@ -163,7 +168,7 @@ export function analyzeFrameQuality(srcPixels, width, height) {
     const lapStd = lapStdBuffer?.buffer?.[0];
 
     if (lapStd === undefined || !Number.isFinite(lapStd)) {
-      if (IS_DEBUG) {
+      if (debugLogging) {
         console.log('[QUALITY] Không đọc được Laplacian StdDev');
       }
 
@@ -175,7 +180,7 @@ export function analyzeFrameQuality(srcPixels, width, height) {
 
     const laplacianVariance = lapStd * lapStd;
 
-    if (IS_DEBUG) {
+    if (debugLogging) {
       console.log(
         `[QUALITY] ` +
           `mean=${mean.toFixed(2)} ` +
@@ -184,8 +189,8 @@ export function analyzeFrameQuality(srcPixels, width, height) {
       );
     }
 
-    if (laplacianVariance < THRESHOLD_BLUR && stddev >= THRESHOLD_BLUR_STD) {
-      if (IS_DEBUG) {
+    if (laplacianVariance < BLUR_THRESHOLD && stddev >= MIN_STDDEV) {
+      if (debugLogging) {
         console.log('[QUALITY] BLUR');
       }
 
@@ -200,7 +205,7 @@ export function analyzeFrameQuality(srcPixels, width, height) {
       reason: 'Tốt',
     };
   } catch (error) {
-    if (IS_DEBUG) {
+    if (debugLogging) {
       console.log('[FrameAnalyzer] Error:', String(error));
     }
 
@@ -217,6 +222,7 @@ export function analyzeFrameQuality(srcPixels, width, height) {
     if (stddevMat) stddevMat.release();
 
     if (laplacian) laplacian.release();
+
     if (lapMean) lapMean.release();
     if (lapStddev) lapStddev.release();
 

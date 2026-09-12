@@ -1,43 +1,39 @@
 import { getBoxCenters } from '../spatialProcessor/geometryUtils';
 
-const TARGET_RETENTION_BONUS = 1.5;
-
-const GRID_WEIGHTS = [
-  [0.5, 0.8, 0.5],
-  [1.0, 1.5, 1.0],
-  [2.0, 3.0, 2.0],
-];
-
 export const gridWeighting = (
   validObstacles,
   labelsVi,
-  yoloSize,
   lastTargetName = '',
+  obstacleConfig,
+  yoloBounds,
 ) => {
   'worklet';
 
   if (validObstacles.length === 0) {
-    return { mostDangerousTarget: null, targetName: null };
+    return {
+      mostDangerousTarget: null,
+      targetName: null,
+    };
   }
 
-  const cellW = yoloSize / 3;
-  const cellH = yoloSize / 3;
+  const cellW = yoloBounds.newW / 3;
+  const cellH = yoloBounds.newH / 3;
 
   validObstacles.forEach(obj => {
     const area = obj.width * obj.height;
     const { cx, bottomY } = getBoxCenters(obj);
 
-    let col = Math.floor(cx / cellW);
+    let col = Math.floor((cx - yoloBounds.padX) / cellW);
     col = Math.max(0, Math.min(2, col));
 
-    let row = Math.floor(bottomY / cellH);
+    let row = Math.floor((bottomY - yoloBounds.padY) / cellH);
     row = Math.max(0, Math.min(2, row));
 
-    const weight = GRID_WEIGHTS[row][col];
+    const weight = obstacleConfig.GRID_WEIGHTS[row][col];
     let dangerScore = area * weight;
 
     if (labelsVi[obj.labelIdx] === lastTargetName) {
-      dangerScore *= TARGET_RETENTION_BONUS;
+      dangerScore *= obstacleConfig.TARGET_RETENTION_BONUS;
     }
 
     obj.dangerScore = dangerScore;
@@ -48,5 +44,8 @@ export const gridWeighting = (
   const mostDangerousTarget = validObstacles[0];
   const targetName = labelsVi[mostDangerousTarget.labelIdx];
 
-  return { mostDangerousTarget, targetName };
+  return {
+    mostDangerousTarget,
+    targetName,
+  };
 };

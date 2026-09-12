@@ -1,4 +1,3 @@
-import React from 'react';
 import { View, Text, ActivityIndicator, StyleSheet } from 'react-native';
 
 export const StatusScreen = ({ message, isLoading = false }) => {

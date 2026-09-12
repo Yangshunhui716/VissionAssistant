@@ -1,5 +1,5 @@
 import { memo } from 'react';
-import { View, StyleSheet } from 'react-native';
+import { View, StyleSheet, Pressable } from 'react-native';
 import { Text, Surface, Icon, TouchableRipple } from 'react-native-paper';
 
 /** @type {React.FC<any>} */
@@ -15,6 +15,7 @@ export const UIOverlay = memo(
     onObjectPress,
     onTextPress,
     onMicPress,
+    onSettingsPress,
   }) => {
     const isListening = appState === 'LISTENING';
     const isWaking = appState === 'WAKING_UP';
@@ -29,7 +30,11 @@ export const UIOverlay = memo(
     const isObjectDisabled = isFunctionActive && !isObjectActive;
     const isTextDisabled = isFunctionActive && !isTextActive;
 
-    const accentColor = isListening ? '#16A34A' : isWaking ? '#D97706' : '#6B7280';
+    const accentColor = isListening
+      ? '#16A34A'
+      : isWaking
+      ? '#D97706'
+      : '#6B7280';
 
     const stateText = isFunctionActive
       ? activeFunction
@@ -58,7 +63,17 @@ export const UIOverlay = memo(
     };
 
     return (
-      <View style={StyleSheet.absoluteFill} pointerEvents="box-none">
+      <View
+        style={StyleSheet.absoluteFill}
+        pointerEvents="box-none"
+      >
+        <Pressable
+          style={StyleSheet.absoluteFill}
+          pointerEvents="auto"
+          onLongPress={onSettingsPress}
+          delayLongPress={1500}
+        />
+
         <View style={styles.resultContainer}>
           <Surface elevation={2} style={styles.resultBox}>
             {detectedObj?.name ? (
@@ -69,7 +84,9 @@ export const UIOverlay = memo(
 
                 <View style={styles.detectionInfo}>
                   <Text style={styles.detectionText}>{detectedObj.depth}</Text>
+
                   <View style={styles.dotSeparator} />
+
                   <Text style={styles.detectionText}>{detectedObj.motion}</Text>
                 </View>
               </>
@@ -84,19 +101,26 @@ export const UIOverlay = memo(
             elevation={3}
             style={[
               styles.state,
-              { borderColor: isFunctionActive ? '#16A34A' : accentColor },
+              {
+                borderColor: isFunctionActive ? '#16A34A' : accentColor,
+              },
             ]}
           >
             <View
               style={[
                 styles.stateDot,
-                { backgroundColor: isFunctionActive ? '#16A34A' : accentColor },
+                {
+                  backgroundColor: isFunctionActive ? '#16A34A' : accentColor,
+                },
               ]}
             />
+
             <Text
               style={[
                 styles.stateText,
-                { color: isFunctionActive ? '#16A34A' : accentColor },
+                {
+                  color: isFunctionActive ? '#16A34A' : accentColor,
+                },
               ]}
             >
               {stateText}
@@ -128,6 +152,7 @@ export const UIOverlay = memo(
                       : '#374151'
                   }
                 />
+
                 <Text
                   style={[
                     styles.menuText,
@@ -152,6 +177,7 @@ export const UIOverlay = memo(
                   size={26}
                   color={getMenuIconColor(isCurrencyActive)}
                 />
+
                 <Text style={getMenuTextStyle(isCurrencyActive)}>Tiền tệ</Text>
               </View>
             </TouchableRipple>
@@ -170,6 +196,7 @@ export const UIOverlay = memo(
                   size={26}
                   color={getMenuIconColor(isObjectActive)}
                 />
+
                 <Text style={getMenuTextStyle(isObjectActive)}>Đồ vật</Text>
               </View>
             </TouchableRipple>
@@ -186,6 +213,7 @@ export const UIOverlay = memo(
                   size={26}
                   color={getMenuIconColor(isTextActive)}
                 />
+
                 <Text style={getMenuTextStyle(isTextActive)}>Văn bản</Text>
               </View>
             </TouchableRipple>
@@ -220,6 +248,7 @@ const styles = StyleSheet.create({
     right: 24,
     alignItems: 'center',
   },
+
   resultBox: {
     minWidth: 180,
     maxWidth: '100%',
@@ -231,6 +260,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
+
   resultText: {
     color: '#16A34A',
     fontSize: 17,
@@ -238,14 +268,26 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     lineHeight: 23,
   },
+
   detectionTitle: {
     color: 'red',
     fontSize: 17,
     fontWeight: '800',
     letterSpacing: 0.4,
   },
-  detectionInfo: { marginTop: 6, flexDirection: 'row', alignItems: 'center' },
-  detectionText: { color: 'black', fontSize: 13, fontWeight: '500' },
+
+  detectionInfo: {
+    marginTop: 6,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+
+  detectionText: {
+    color: 'black',
+    fontSize: 13,
+    fontWeight: '500',
+  },
+
   dotSeparator: {
     width: 4,
     height: 4,
@@ -253,6 +295,7 @@ const styles = StyleSheet.create({
     marginHorizontal: 9,
     backgroundColor: '#9CA3AF',
   },
+
   stateContainer: {
     position: 'absolute',
     bottom: 158,
@@ -260,6 +303,7 @@ const styles = StyleSheet.create({
     right: 0,
     alignItems: 'center',
   },
+
   state: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -269,8 +313,20 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     backgroundColor: 'rgba(255,255,255,0.96)',
   },
-  stateDot: { width: 9, height: 9, borderRadius: 5, marginRight: 8 },
-  stateText: { fontSize: 13, fontWeight: '700', letterSpacing: 0.2 },
+
+  stateDot: {
+    width: 9,
+    height: 9,
+    borderRadius: 5,
+    marginRight: 8,
+  },
+
+  stateText: {
+    fontSize: 13,
+    fontWeight: '700',
+    letterSpacing: 0.2,
+  },
+
   bottomMenu: {
     position: 'absolute',
     left: 0,
@@ -282,43 +338,60 @@ const styles = StyleSheet.create({
     borderTopRightRadius: 22,
     overflow: 'hidden',
   },
-  menuRow: { flex: 1, flexDirection: 'row' },
+
+  menuRow: {
+    flex: 1,
+    flexDirection: 'row',
+  },
+
   menuButton: {
     flex: 1,
     borderWidth: 0.7,
     borderColor: '#D1D5DB',
     backgroundColor: 'rgba(255,255,255,0.96)',
   },
+
   menuContent: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
   },
+
   menuButtonActive: {
     backgroundColor: 'rgba(220,252,231,0.95)',
     borderColor: '#16A34A',
     borderWidth: 2,
   },
+
   menuButtonObstacleActive: {
     backgroundColor: 'rgba(220,252,231,0.95)',
     borderColor: '#16A34A',
     borderWidth: 2,
   },
-  menuButtonDisabled: { opacity: 0.35 },
+
+  menuButtonDisabled: {
+    opacity: 0.35,
+  },
+
   menuText: {
     marginLeft: 9,
     fontSize: 16,
     fontWeight: '600',
     color: '#1F2937',
   },
+
   menuTextActive: {
     marginLeft: 9,
     fontSize: 16,
     fontWeight: '800',
     color: '#16A34A',
   },
-  menuTextDisabled: { color: '#9CA3AF' },
+
+  menuTextDisabled: {
+    color: '#9CA3AF',
+  },
+
   micWrapper: {
     position: 'absolute',
     bottom: 30,
@@ -333,6 +406,7 @@ const styles = StyleSheet.create({
     zIndex: 30,
     elevation: 10,
   },
+
   micButton: {
     width: '100%',
     height: '100%',
@@ -340,5 +414,10 @@ const styles = StyleSheet.create({
     backgroundColor: 'white',
     overflow: 'hidden',
   },
-  micPressable: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+
+  micPressable: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
 });

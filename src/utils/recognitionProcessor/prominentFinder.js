@@ -1,3 +1,5 @@
+import { getBoxCenters } from '../spatialProcessor/geometryUtils';
+
 const getProminentObject = (
   parsedDetections,
   labelsVi,
@@ -14,16 +16,12 @@ const getProminentObject = (
 
   for (let i = 0; i < parsedDetections.length; i++) {
     const obj = parsedDetections[i];
-
     const area = obj.width * obj.height;
-
-    const objCenterX = obj.x + obj.width / 2;
-
-    const objCenterY = obj.y + obj.height / 2;
+    const { cx, cy } = getBoxCenters(obj);
 
     const distToCenter = Math.sqrt(
-      Math.pow(objCenterX - frameCenterX, 2) +
-        Math.pow(objCenterY - frameCenterY, 2),
+      Math.pow(cx - frameCenterX, 2) +
+      Math.pow(cy - frameCenterY, 2),
     );
 
     const weight = area / (distToCenter + distanceSmoothingFactor);
@@ -41,27 +39,27 @@ export const processGeneralScan = (
   parsedDetections,
   labelsVi,
   yoloBounds,
-  maxFrames,
-  distanceSmoothingFactor,
+  generalScanConfig,
 ) => {
   'worklet';
 
-  globalThis.__scanFrameCount = (globalThis.__scanFrameCount || 0) + 1;
+  const { DIST_SMOOTHING_FACTOR, MAX_FRAMES} = generalScanConfig;
 
+  globalThis.__scanFrameCount = (globalThis.__scanFrameCount || 0) + 1;
   globalThis.__scanResults = globalThis.__scanResults || [];
 
   const prominentName = getProminentObject(
     parsedDetections,
     labelsVi,
     yoloBounds,
-    distanceSmoothingFactor,
+    DIST_SMOOTHING_FACTOR,
   );
 
   if (prominentName) {
     globalThis.__scanResults.push(prominentName);
   }
 
-  if (globalThis.__scanFrameCount < maxFrames) {
+  if (globalThis.__scanFrameCount < MAX_FRAMES) {
     return {
       status: 'SCANNING',
       result: null,
@@ -76,7 +74,6 @@ export const processGeneralScan = (
 
     for (let i = 0; i < globalThis.__scanResults.length; i++) {
       const name = globalThis.__scanResults[i];
-
       counts[name] = (counts[name] || 0) + 1;
 
       if (counts[name] > maxCount) {

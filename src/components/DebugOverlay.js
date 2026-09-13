@@ -7,7 +7,7 @@ export const DebugOverlay = memo(
   ({ fps, objectList, debugImage, showFps, showObjects, onCapturePress, debug }) => {
     return (
       <View style={StyleSheet.absoluteFill} pointerEvents="box-none">
-        {debug && debugImage && (
+        {debugImage && (
           <View style={styles.debugContainer}>
             <Image
               source={{ uri: debugImage }}

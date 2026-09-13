@@ -4,6 +4,7 @@ export const getDepthFromMidas = (
   yoloBounds,
   midasBounds,
   spatialConfig,
+  debugLogging = null,
 ) => {
   'worklet';
 
@@ -59,10 +60,14 @@ export const getDepthFromMidas = (
 
   const avgDepth = count > 0 ? sumDepth / count : 0;
 
-  return (
-    maxRawDepth * spatialConfig.MAX_DEPTH_WEIGHT +
-    avgDepth * spatialConfig.AVG_DEPTH_WEIGHT
-  );
+  const result = (maxRawDepth * spatialConfig.MAX_DEPTH_WEIGHT +
+    avgDepth * spatialConfig.AVG_DEPTH_WEIGHT);
+
+  if(debugLogging){
+    console.log(`Raw distance: ${result}`);
+  }
+
+  return result;
 };
 
 export const translateDepthToText = (rawVal, spatialConfig) => {

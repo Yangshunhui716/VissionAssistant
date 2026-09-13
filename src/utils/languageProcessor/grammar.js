@@ -1,6 +1,6 @@
 import { OBJECT365_LABELS_VI } from '../recognitionProcessor/labels';
 
-export const ALIAS_MAP = {
+export const SYNONYM_MAP = {
   'cái ly': 'cái cốc',
   'cái tách': 'cái cốc',
   'cái chén': 'cái bát',
@@ -26,7 +26,39 @@ export const ALIAS_MAP = {
   'con heo': 'con lợn',
   'tiền giấy': 'tiền',
   'tiền cắc': 'tiền',
+  'chai nước': 'cái chai',
+
+  'sách tay': 'xách tay',
+  'sách tây': 'xách tay',
+  'sách tài': 'xách tay',
+  'mái tính': 'máy tính',
+  'mì vi': 'ti vi',
+  'bảng hiểm': 'bàn phím',
+  'chày nước': 'chai nước',
+  'chai nướng': 'chai nước',
+  'dài nước': 'chai nước',
+  'cải dài': 'cái chai',
 };
+
+export const ALIAS_MAP = {
+  'tách': 'tắt',
+  'vợt': 'vật',
+  'kèn': 'cản',
+  'kẻ': 'cản',
+  'cảnh': 'cản',
+  'dừng diện': 'nhận diện',
+  'nhìn diện': 'nhận diện',
+  'súp': 'giúp',
+  'diếp': 'giúp',
+  'chứa': 'trước',
+  'trượt': 'trước',
+  'tiền': 'tìm',
+  'xì': 'tìm',
+  'vằn': 'văn',
+  'bảng': 'bản',
+  'bàng': 'bản',
+  'đầu': 'đâu'
+}
 
 export const WAKE_GRAMMAR = [
   'xin', 'chào', 'trợ', 'lý', '[unk]'
@@ -36,41 +68,30 @@ export const ACTION_WORDS = [
   'quét', 'nhận', 'diện', 'nhìn',
   'xem', 'đọc', 'kiểm', 'tra', 'tắt', 'ngừng',
   'dừng', 'hủy', 'bật', 'mở', 'chạy', 'có',
-  'giúp', 'khởi', 'động'
+  'giúp', 'khởi', 'động', 'xác', 'định'
 ];
 
 export const FUNCTION_KEYWORDS = {
-  OBSTACLE: ['vật', 'cản', 'chướng', 
+  OBSTACLE: ['cản', 'chướng', 
     'ngại','cảnh','báo'],
 
-  CURRENCY: ['tiền', 'tờ',
+  CURRENCY: ['tiền','tệ', 'tờ',
     'mệnh', 'giá', 'đồng'],
 
   TEXT: ['chữ', 'văn', 'bản',
     'tài', 'liệu', 'trang',
     'giấy', 'câu'],
 
-  GENERAL: ['xung', 'quanh',
+  GENERAL: ['đồ', 'xung', 'quanh',
     'phía', 'trước'],
 
   FIND: ['tìm', 'kiếm', 'đâu'],
 };
 
 export const COMMON_WORDS = [
-  'cái', 'cho', 'tôi', 'tui', 'giúp', 'mình',
-  'nhé', 'nha', 'đi', 'chiếc', 'con', 'quả',
-  'trái', 'ở', 'này', 'gì', 'mắt','túi'
-];
-
-export const TARGET_STOP_WORDS = [
-  ...ACTION_WORDS,
-  ...COMMON_WORDS,
-  ...FUNCTION_KEYWORDS.OBSTACLE,
-  ...FUNCTION_KEYWORDS.CURRENCY,
-  ...FUNCTION_KEYWORDS.TEXT,
-  ...FUNCTION_KEYWORDS.GENERAL,
-  ...FUNCTION_KEYWORDS.FIND,
-];
+  'cho', 'tôi', 'tui', 'giúp', 'mình',
+  'nhé', 'nha', 'đi', 'ở', 'này', 'gì', 'mắt',
+]
 
 const generateGrammar = () => {
   const allSentences = [ 

@@ -21,9 +21,19 @@ export const useVoiceCommand = (
   setIsScanningText,
 ) => {
   const { config } = useRuntimeConfig();
-  const voice = config.voice;
+  const voiceConfig = config.voice;
   const intentConfig = config.intent;
-  const debug = config.debug;
+  const debugConfig = config.debug;
+
+  const voiceConfigRef = useRef(voiceConfig);
+  const intentConfigRef = useRef(intentConfig);
+  const debugConfigRef = useRef(debugConfig);
+
+  useEffect(() => {
+    voiceConfigRef.current = voiceConfig;
+    intentConfigRef.current = intentConfig;
+    debugConfigRef.current = debugConfig;
+  }, [voiceConfig, intentConfig, debugConfig]);
 
   const stateRef = useRef('SLEEP');
   const timeoutRef = useRef(null);
@@ -47,7 +57,7 @@ export const useVoiceCommand = (
       }
 
       isSwitching.current = true;
-      ignoreWakeRef.current = Date.now() + voice.WAKE_LOCK_MS;
+      ignoreWakeRef.current = Date.now() + voiceConfig.WAKE_LOCK_MS;
       changeState('SLEEP', PROMPTS.system.sleeping);
 
       if (isModelLoaded.current) {
@@ -59,7 +69,7 @@ export const useVoiceCommand = (
 
       isSwitching.current = false;
     } catch (e) {
-      if (debug.logging) {
+      if (debugConfigRef.current.logging) {
         console.log('Error Vosk Guard: ', e);
       }
 
@@ -94,14 +104,14 @@ export const useVoiceCommand = (
     isSwitching.current = true;
     await vosk.stop();
 
-    if (debug.logging) {
+    if (debugConfigRef.current.logging) {
       console.log('LỆNH ĐÃ CHỐT: ', finalText);
     }
 
     const { intent, targetName } = analyzeCommand(
       finalText,
-      intentConfig,
-      debug.logging,
+      intentConfigRef.current,
+      debugConfigRef.current.logging,
     );
 
     if (intent === 'OBSTACLE_ON') {
@@ -120,37 +130,52 @@ export const useVoiceCommand = (
       setIsScanningGeneral(false);
       setIsScanningText(false);
       setIsScanningCurrency(false);
-      setTargetToFind(targetName);
-    } else if (intent === 'SCAN_GENERAL') {
+      if (targetName) setTargetToFind(targetName);
+      else playFeedback(PROMPTS.find.invalid);
+    } else if (intent === 'GENERAL') {
       setTargetToFind(null);
       setIsScanningText(false);
       setIsScanningCurrency(false);
       setIsScanningGeneral(true);
-    } else if (intent === 'SCAN_CURRENCY') {
+    } else if (intent === 'CURRENCY') {
       setTargetToFind(null);
       setIsScanningGeneral(false);
       setIsScanningText(false);
       setIsScanningCurrency(true);
-    } else if (intent === 'SCAN_TEXT') {
+    } else if (intent === 'TEXT') {
       setTargetToFind(null);
       setIsScanningGeneral(false);
       setIsScanningCurrency(false);
       setIsScanningText(true);
     } else {
-      haptics.error()
+      haptics.error();
       playFeedback(PROMPTS.error.invalidCommand);
     }
 
-    setTimeout(startVoskGuard, voice.POST_COMMAND_COOLDOWN_MS);
+    setTimeout(startVoskGuard, voiceConfig.POST_COMMAND_COOLDOWN_MS);
   };
 
   useEffect(() => {
     if (!hasMicPermission) return;
 
-    vosk.loadModel('model-vn-vn').then(() => {
-      isModelLoaded.current = true;
-      startVoskGuard();
-    });
+    let isCancelled = false;
+
+    const initializeVosk = async () => {
+      try {
+        await vosk.loadModel('model-vn-vn');
+
+        if (isCancelled) return;
+
+        isModelLoaded.current = true;
+        await startVoskGuard();
+      } catch (e) {
+        if (debugConfigRef.current.logging && !isCancelled) {
+          console.log('Error load Vosk: ', e);
+        }
+      }
+    };
+
+    initializeVosk();
 
     const voskResult = vosk.onPartialResult(res => {
       if (isSwitching.current) return;
@@ -159,7 +184,7 @@ export const useVoiceCommand = (
 
       if (!text) return;
 
-      if (debug.logging) {
+      if (debugConfigRef.current.logging) {
         console.log('KẾT QUẢ VOSK: ', text);
       }
 
@@ -177,18 +202,21 @@ export const useVoiceCommand = (
         }
 
         timeoutRef.current = setTimeout(() => {
-          if (text.length >= voice.MIN_COMMAND_LENGTH) {
+          if (text.length >= voiceConfigRef.current.MIN_COMMAND_LENGTH) {
             finalizeCommand(text);
           } else {
             startVoskGuard();
           }
-        }, voice.SILENCE_TIMEOUT_MS);
+        }, voiceConfigRef.current.SILENCE_TIMEOUT_MS);
       }
     });
 
     return () => {
+      isCancelled = true;
+
       if (timeoutRef.current) {
         clearTimeout(timeoutRef.current);
+        timeoutRef.current = null;
       }
 
       vosk.stop();
@@ -197,15 +225,7 @@ export const useVoiceCommand = (
 
       isModelLoaded.current = false;
     };
-  }, [
-    hasMicPermission,
-    voice.SILENCE_TIMEOUT_MS,
-    voice.POST_COMMAND_COOLDOWN_MS,
-    voice.MIN_COMMAND_LENGTH,
-    voice.WAKE_LOCK_MS,
-    debug.logging,
-    intentConfig,
-  ]);
+  }, [hasMicPermission]);
 
   return {
     manualWakeUp: switchToListening,

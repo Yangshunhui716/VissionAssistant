@@ -70,8 +70,8 @@ export const useVision = (
   onCaptureReportComplete,
 ) => {
   const { config } = useRuntimeConfig();
-  const vision = config.vision;
-  const debug = config.debug;
+  const visionConfig = config.vision;
+  const debugConfig = config.debug;
   const frameQualityConfig = config.frameQuality;
   const yoloConfig = config.yolo;
   const searchConfig = config.search;
@@ -198,7 +198,7 @@ export const useVision = (
       const now = Date.now();
       const isDifferentTarget = baseName !== lastSpokenBaseName;
       const isCloser = currentDepthLevel > lastSpokenDepthLevel;
-      const isTimeUp = now - lastSpokenTime > vision.THREAT_COOLDOWN_MS;
+      const isTimeUp = now - lastSpokenTime > visionConfig.THREAT_COOLDOWN_MS;
       if (isDifferentTarget || isCloser || isTimeUp) {
         lastSpokenBaseName = baseName;
         lastSpokenDepthLevel = currentDepthLevel;
@@ -206,7 +206,7 @@ export const useVision = (
         onThreatDetected(`${displayAlertName}, cách ${depthText}, ${motion}`);
       }
     } else {
-      if (Date.now() - lastSpokenTime > vision.THREAT_RESET_MS) {
+      if (Date.now() - lastSpokenTime > visionConfig.THREAT_RESET_MS) {
         lastSpokenDepthLevel = 0;
       }
     }
@@ -236,20 +236,20 @@ export const useVision = (
         ? filePath
         : `file://${filePath}`;
       const result = await TextRecognition.recognize(imageUri);
-      if (debug.enabled) {
+      if (debugConfig.enabled) {
         setDebugImage(imageUri);
       }
       const text = result?.text?.trim() || '';
       onTextScanComplete(text);
     } catch (e) {
-      if (debug.logging) {
+      if (debugConfig.logging) {
         console.error('Error OCR: ', e);
       }
       onTextScanComplete('');
     } finally {
       isProcessingText.value = false;
     }
-  }, [photoOutput, onTextScanComplete, debug.enabled, debug.logging]);
+  }, [photoOutput, onTextScanComplete, debugConfig.enabled, debugConfig.logging]);
 
   const frameOutput = useFrameOutput(
     {
@@ -268,9 +268,9 @@ export const useVision = (
             globalThis.__lastFpsTime = globalThis.__lastFpsTime || Date.now();
             if (
               now - globalThis.__lastFpsTime >=
-              vision.FPS_UPDATE_INTERVAL_MS
+              visionConfig.FPS_UPDATE_INTERVAL_MS
             ) {
-              if (debug.enabled) {
+              if (debugConfig.enabled) {
                 scheduleOnRN(updateFps, globalThis.__frameCount);
               }
               globalThis.__frameCount = 0;
@@ -287,7 +287,7 @@ export const useVision = (
             }
 
             let forceCapture = false;
-            if (debug.enabled && captureTrigger && captureTrigger.value) {
+            if (debugConfig.enabled && captureTrigger && captureTrigger.value) {
               forceCapture = true;
               captureTrigger.value = false;
             }
@@ -299,13 +299,13 @@ export const useVision = (
               frame.width,
               frame.height,
               frameQualityConfig,
-              debug.qualityFrame,
+              debugConfig.qualityFrame,
             );
 
             if (frameQuality.isBad) {
               if (
                 now - (globalThis.__lastBlockedWarnTime || 0) >
-                vision.BLOCKED_WARN_MS
+                visionConfig.BLOCKED_WARN_MS
               ) {
                 globalThis.__lastBlockedWarnTime = now;
                 scheduleOnRN(onFrameQuality, frameQuality.reason);
@@ -374,6 +374,7 @@ export const useVision = (
                     task.yoloBounds,
                     midasBounds,
                     spatialConfig,
+                    debugConfig.logging,
                   );
 
                   scheduleOnRN(
@@ -405,72 +406,45 @@ export const useVision = (
                 scheduleOnRN(clearAlert);
               }
 
-              if (!globalThis.__currencyStartTime) {
-                globalThis.__currencyStartTime = now;
+              const yoloResized = preprocessFrame(
+                frameData,
+                frame.width,
+                frame.height,
+                YOLO_SIZE,
+                YOLO_SIZE,
+                yoloBuffer,
+                'CHW',
+                frame.orientation,
+                frame.isMirrored,
+                null,
+              );
+
+              const currencyOutputs = yoloCurrencyModel.model.runSync([
+                yoloResized.buffer,
+              ]);
+
+              const parsedCurrency = parseYoloOutput(
+                currencyOutputs,
+                YOLO_SIZE,
+                currencyConfig.SCORE_THRESHOLD,
+                debugConfig.logging,
+              );
+
+              const resultCurrencyScan = processCurrencyScan(
+                parsedCurrency,
+                CURRENCY_LABELS_VI,
+                currencyConfig,
+              );
+
+              if (resultCurrencyScan.done) {
+                scheduleOnRN(
+                  onCurrencyScanComplete,
+                  resultCurrencyScan.result,
+                );
               }
 
-              if (
-                !globalThis.__lastCurrencyProcessTime ||
-                now - globalThis.__lastCurrencyProcessTime >
-                  vision.PROCESS_DELAY_MS
-              ) {
-                globalThis.__lastCurrencyProcessTime = now;
-
-                const yoloResized = preprocessFrame(
-                  frameData,
-                  frame.width,
-                  frame.height,
-                  YOLO_SIZE,
-                  YOLO_SIZE,
-                  yoloBuffer,
-                  'CHW',
-                  frame.orientation,
-                  frame.isMirrored,
-                  null,
-                );
-
-                const currencyOutputs = yoloCurrencyModel.model.runSync([
-                  yoloResized.buffer,
-                ]);
-
-                const parsedCurrency = parseYoloOutput(
-                  currencyOutputs,
-                  YOLO_SIZE,
-                  yoloConfig.CONFIDENCE_THRESHOLD,
-                  debug.logging,
-                );
-
-                const resultCurrencyScan = processCurrencyScan(
-                  parsedCurrency,
-                  CURRENCY_LABELS_VI,
-                  currencyConfig,
-                );
-
-                if (resultCurrencyScan) {
-                  globalThis.__currencyStartTime = now;
-
-                  if (
-                    !globalThis.__lastMoneySpeakTime ||
-                    now - globalThis.__lastMoneySpeakTime >
-                      vision.CURRENCY_COOLDOWN_MS
-                  ) {
-                    globalThis.__lastMoneySpeakTime = now;
-                    scheduleOnRN(onCurrencyScanComplete, resultCurrencyScan);
-                  }
-                } else {
-                  if (
-                    now - globalThis.__currencyStartTime >
-                    vision.CURRENCY_TIMEOUT_MS
-                  ) {
-                    globalThis.__currencyStartTime = null;
-                    scheduleOnRN(onCurrencyScanComplete, '');
-                  }
-                }
-              }
               return;
             } else {
-              globalThis.__currencyStartTime = null;
-              globalThis.__lastMoneySpeakTime = 0;
               resetCurrencyScan();
             }
 
@@ -490,7 +464,7 @@ export const useVision = (
                 scheduleOnRN(clearAlert);
               }
 
-              if (debug.enabled) {
+              if (debugConfig.enabled) {
                 scheduleOnRN(updateList, []);
                 scheduleOnRN(updateDebugImage, null);
               }
@@ -499,7 +473,7 @@ export const useVision = (
 
             if (
               !globalThis.__lastProcessTime ||
-              now - globalThis.__lastProcessTime > vision.PROCESS_DELAY_MS
+              now - globalThis.__lastProcessTime > visionConfig.PROCESS_DELAY_MS
             ) {
               globalThis.__lastProcessTime = now;
 
@@ -536,10 +510,10 @@ export const useVision = (
                 objectOutputs,
                 YOLO_SIZE,
                 yoloConfig.CONFIDENCE_THRESHOLD,
-                debug.logging,
+                debugConfig.logging,
               );
 
-              if (debug.enabled) {
+              if (debugConfig.enabled) {
                 if (parsedObject.length > 0) {
                   const currentNames = parsedObject.map(
                     obj => OBJECT365_LABELS_VI[obj.labelIdx],
@@ -552,7 +526,7 @@ export const useVision = (
                 if (
                   !globalThis.__lastDumpTime ||
                   now - globalThis.__lastDumpTime >
-                    vision.DEBUG_DUMP_INTERVAL_MS
+                    visionConfig.DEBUG_DUMP_INTERVAL_MS
                 ) {
                   globalThis.__lastDumpTime = now;
 
@@ -623,16 +597,36 @@ export const useVision = (
                   const depthRange = maxDepth - minDepth || 1;
 
                   for (let i = 0; i < rawDepth.length; i++) {
-                    const v = (rawDepth[i] - minDepth) / depthRange;
-                    const r = Math.round(
-                      255 * Math.max(0, Math.min(1, 1.5 - Math.abs(4 * v - 3))),
+                    const v = Math.max(
+                      0,
+                      Math.min(1, (rawDepth[i] - minDepth) / depthRange),
                     );
-                    const g = Math.round(
-                      255 * Math.max(0, Math.min(1, 1.5 - Math.abs(4 * v - 2))),
-                    );
-                    const b = Math.round(
-                      255 * Math.max(0, Math.min(1, 1.5 - Math.abs(4 * v - 1))),
-                    );
+
+                    let r;
+                    let g;
+                    let b;
+
+                    if (v < 0.25) {
+                      const t = v / 0.25;
+                      r = Math.round(13 + (126 - 13) * t);
+                      g = Math.round(8 + (3 - 8) * t);
+                      b = Math.round(135 + (167 - 135) * t);
+                    } else if (v < 0.5) {
+                      const t = (v - 0.25) / 0.25;
+                      r = Math.round(126 + (204 - 126) * t);
+                      g = Math.round(3 + (71 - 3) * t);
+                      b = Math.round(167 + (120 - 167) * t);
+                    } else if (v < 0.75) {
+                      const t = (v - 0.5) / 0.25;
+                      r = Math.round(204 + (248 - 204) * t);
+                      g = Math.round(71 + (149 - 71) * t);
+                      b = Math.round(120 + (64 - 120) * t);
+                    } else {
+                      const t = (v - 0.75) / 0.25;
+                      r = Math.round(248 + (240 - 248) * t);
+                      g = Math.round(149 + (249 - 149) * t);
+                      b = Math.round(64 + (33 - 64) * t);
+                    }
 
                     depthPixels[i * 3] = r;
                     depthPixels[i * 3 + 1] = g;
@@ -689,8 +683,7 @@ export const useVision = (
                     parsedObject,
                     searchTarget,
                     OBJECT365_LABELS_VI,
-                    vision.SEARCH_MAX_FRAMES,
-                    searchConfig.SCORE_THRESHOLD,
+                    searchConfig,
                   );
 
                   if (searchResult.status === 'FOUND') {
@@ -700,7 +693,7 @@ export const useVision = (
 
                     if (
                       (!globalThis.__lastDepthMap ||
-                        timeSinceLastMidas > vision.MIDAS_SEARCH_INTERVAL_MS) &&
+                        timeSinceLastMidas > visionConfig.MIDAS_SEARCH_INTERVAL_MS) &&
                       midasModel.model
                     ) {
                       if (!globalThis.__pendingMidasTask) {
@@ -746,8 +739,7 @@ export const useVision = (
                   parsedObject,
                   OBJECT365_LABELS_VI,
                   yoloBounds,
-                  vision.SCAN_GENERAL_MAX_FRAMES,
-                  generalScanConfig.DIST_SMOOTHING_FACTOR,
+                  generalScanConfig,
                 );
                 if (scanProcess.status === 'DONE') {
                   scheduleOnRN(onGeneralScanComplete, scanProcess.result);
@@ -795,9 +787,9 @@ export const useVision = (
                     targetName !== globalThis.__lastMidasTarget;
 
                   if (
-                    timeSinceLastMidas > vision.MIDAS_DELAY_MS ||
+                    timeSinceLastMidas > visionConfig.MIDAS_DELAY_MS ||
                     (isNewTarget &&
-                      timeSinceLastMidas > vision.MIDAS_NEW_TARGET_DELAY_MS)
+                      timeSinceLastMidas > visionConfig.MIDAS_NEW_TARGET_DELAY_MS)
                   ) {
                     globalThis.__pendingMidasTask = {
                       type: 'THREAT',
@@ -831,7 +823,7 @@ export const useVision = (
 
                   if (
                     globalThis.__lastThreatTarget !== '' &&
-                    timeSinceLastSeen > vision.ALERT_CLEAR_DELAY_MS
+                    timeSinceLastSeen > visionConfig.ALERT_CLEAR_DELAY_MS
                   ) {
                     globalThis.__lastThreatTarget = '';
                     scheduleOnRN(clearAlert);
@@ -846,7 +838,7 @@ export const useVision = (
             }
           }
         } catch (e) {
-          if (debug.logging) {
+          if (debugConfig.logging) {
             console.error('Error Worklet:', String(e));
           }
         } finally {
@@ -862,25 +854,8 @@ export const useVision = (
       isScanningText,
       isProcessingText,
       runTextRecognition,
-
-      vision.PROCESS_DELAY_MS,
-      vision.MIDAS_DELAY_MS,
-      vision.MIDAS_NEW_TARGET_DELAY_MS,
-      vision.MIDAS_SEARCH_INTERVAL_MS,
-      vision.BLOCKED_WARN_MS,
-      vision.THREAT_COOLDOWN_MS,
-      vision.THREAT_RESET_MS,
-      vision.ALERT_CLEAR_DELAY_MS,
-      vision.CURRENCY_COOLDOWN_MS,
-      vision.CURRENCY_TIMEOUT_MS,
-      vision.SEARCH_MAX_FRAMES,
-      vision.SCAN_GENERAL_MAX_FRAMES,
-      vision.DEBUG_DUMP_INTERVAL_MS,
-      vision.FPS_UPDATE_INTERVAL_MS,
-
-      debug.enabled,
-      debug.logging,
-
+      visionConfig,
+      debugConfig,
       frameQualityConfig,
       yoloConfig,
       searchConfig,

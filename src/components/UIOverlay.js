@@ -226,6 +226,8 @@ export const UIOverlay = memo(
               onPress={onMicPress}
               rippleColor="rgba(0, 0, 0, 0.15)"
               style={styles.micPressable}
+              accessibilityRole="button"
+              accessibilityLabel={isListening ? 'Dừng nghe' : 'Ra lệnh bằng giọng nói'}
             >
               <Icon
                 source={isListening ? 'microphone' : 'microphone-outline'}

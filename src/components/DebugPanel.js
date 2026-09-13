@@ -108,6 +108,16 @@ export const DebugPanel = memo(({ visible, onClose }) => {
           />
 
           <ToggleRow
+            title="Hiển thị debug image"
+            value={config.debug.showImage}
+            onChange={value =>
+              updateSection('debug', {
+                showImage: value,
+              })
+            }
+          />
+
+          <ToggleRow
             title="Hiển thị FPS"
             value={config.debug.showFps}
             onChange={value =>

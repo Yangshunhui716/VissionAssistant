@@ -6,24 +6,24 @@ import { useRuntimeConfig } from '../context/RuntimeConfigContext';
 
 export const useFeedbackController = () => {
   const { config } = useRuntimeConfig();
-  const feedback = config.feedback;
+  const feedbackConfig = config.feedback;
 
   const [uiTranscript, setUiTranscript] = useState('Đang chờ khởi tạo...');
-  const currentPriorityRef = useRef(feedback.PRIORITY_IDLE);
+  const currentPriorityRef = useRef(feedbackConfig.PRIORITY_IDLE);
   const lastActionTimeRef = useRef(Date.now());
 
   useEffect(() => {
-    Tts.setDefaultLanguage(feedback.DEFAULT_LANGUAGE);
-    Tts.setDefaultRate(feedback.TTS_RATE);
-  }, [feedback.DEFAULT_LANGUAGE, feedback.TTS_RATE]);
+    Tts.setDefaultLanguage(feedbackConfig.DEFAULT_LANGUAGE);
+    Tts.setDefaultRate(feedbackConfig.TTS_RATE);
+  }, [feedbackConfig.DEFAULT_LANGUAGE, feedbackConfig.TTS_RATE]);
 
   useEffect(() => {
     const onFinish = () => {
-      currentPriorityRef.current = feedback.PRIORITY_IDLE;
+      currentPriorityRef.current = feedbackConfig.PRIORITY_IDLE;
     };
 
     const onCancel = () => {
-      currentPriorityRef.current = feedback.PRIORITY_IDLE;
+      currentPriorityRef.current = feedbackConfig.PRIORITY_IDLE;
     };
 
     const finishListener = Tts.addEventListener('tts-finish', onFinish);
@@ -33,26 +33,26 @@ export const useFeedbackController = () => {
       finishListener.remove();
       cancelListener.remove();
     };
-  }, [feedback.PRIORITY_IDLE]);
+  }, [feedbackConfig.PRIORITY_IDLE]);
 
   useEffect(() => {
     const heartbeatInterval = setInterval(() => {
       const timeSinceLastAction = Date.now() - lastActionTimeRef.current;
 
-      if (timeSinceLastAction > feedback.HEARTBEAT_TIMEOUT_MS) {
+      if (timeSinceLastAction > feedbackConfig.HEARTBEAT_TIMEOUT_MS) {
         Vibration.vibrate(
-          feedback.HEARTBEAT_VIBE_DURATION
+          feedbackConfig.HEARTBEAT_VIBE_DURATION
         );
 
         lastActionTimeRef.current = Date.now();
       }
-    }, feedback.HEARTBEAT_TICK_MS);
+    }, feedbackConfig.HEARTBEAT_TICK_MS);
 
     return () => clearInterval(heartbeatInterval);
   }, [
-    feedback.HEARTBEAT_TIMEOUT_MS,
-    feedback.HEARTBEAT_TICK_MS,
-    feedback.HEARTBEAT_VIBE_DURATION,
+    feedbackConfig.HEARTBEAT_TIMEOUT_MS,
+    feedbackConfig.HEARTBEAT_TICK_MS,
+    feedbackConfig.HEARTBEAT_VIBE_DURATION,
   ]);
 
   const playFeedback = useCallback(
@@ -65,10 +65,10 @@ export const useFeedbackController = () => {
 
       if (!promptObj.tts) return;
 
-      const incomingPriority = promptObj.priority ?? feedback.PRIORITY_DEFAULT;
+      const incomingPriority = promptObj.priority ?? feedbackConfig.PRIORITY_DEFAULT;
 
       if (incomingPriority <= currentPriorityRef.current) {
-        if (incomingPriority === feedback.PRIORITY_INTERRUPT) {
+        if (incomingPriority === feedbackConfig.PRIORITY_INTERRUPT) {
           Tts.stop();
         }
 
@@ -77,27 +77,27 @@ export const useFeedbackController = () => {
         lastActionTimeRef.current = Date.now();
       }
     },
-    [feedback.PRIORITY_DEFAULT, feedback.PRIORITY_INTERRUPT],
+    [feedbackConfig.PRIORITY_DEFAULT, feedbackConfig.PRIORITY_INTERRUPT],
   );
 
   const haptics = useMemo(
     () => ({
       wakeUp: () => {
-        Vibration.vibrate(feedback.HAPTIC_WAKE_UP);
+        Vibration.vibrate(feedbackConfig.HAPTIC_WAKE_UP);
         lastActionTimeRef.current = Date.now();
       },
 
       success: () => {
-        Vibration.vibrate(feedback.HAPTIC_SUCCESS);
+        Vibration.vibrate(feedbackConfig.HAPTIC_SUCCESS);
         lastActionTimeRef.current = Date.now();
       },
 
       error: () => {
-        Vibration.vibrate(feedback.HAPTIC_ERROR);
+        Vibration.vibrate(feedbackConfig.HAPTIC_ERROR);
         lastActionTimeRef.current = Date.now();
       },
     }),
-    [feedback.HAPTIC_WAKE_UP, feedback.HAPTIC_SUCCESS, feedback.HAPTIC_ERROR],
+    [feedbackConfig.HAPTIC_WAKE_UP, feedbackConfig.HAPTIC_SUCCESS, feedbackConfig.HAPTIC_ERROR],
   );
 
   return {

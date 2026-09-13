@@ -2,10 +2,11 @@ export const processSearch = (
   parsedDetections,
   searchTarget,
   labelsVi,
-  maxFrames,
-  SCORE_THRESHOLD,
+  searchConfig,
 ) => {
   'worklet';
+  const { SCORE_THRESHOLD, MAX_FRAMES } = searchConfig;
+
   globalThis.__searchFrameCount = (globalThis.__searchFrameCount || 0) + 1;
 
   const foundItem = parsedDetections.find(
@@ -22,7 +23,7 @@ export const processSearch = (
     };
   }
 
-  if (globalThis.__searchFrameCount >= maxFrames) {
+  if (globalThis.__searchFrameCount >= MAX_FRAMES) {
     globalThis.__searchFrameCount = 0;
 
     return {

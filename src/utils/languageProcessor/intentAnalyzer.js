@@ -5,370 +5,411 @@ import {
   ACTION_WORDS,
   FUNCTION_KEYWORDS,
   COMMON_WORDS,
-  TARGET_STOP_WORDS,
+  SYNONYM_MAP,
 } from './grammar';
 
 const normalizeText = text => {
-  return (text || '').toLowerCase().trim().replace(/\s+/g, ' ');
+  return String(text || '')
+    .toLowerCase()
+    .normalize('NFC')
+    .replace(/\s+/g, ' ')
+    .trim();
+};
+
+const tokenize = text => {
+  const normalized = normalizeText(text);
+
+  if (!normalized) {
+    return [];
+  }
+
+  return normalized.split(' ');
 };
 
 const escapeRegExp = value => {
   return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 };
 
-const PRECOMPILED_ALIASES = Object.keys(ALIAS_MAP)
-  .sort((a, b) => b.length - a.length)
-  .map(alias => ({
-    regex: new RegExp(`(^|\\s)${escapeRegExp(alias)}(?=\\s|$)`, 'g'),
-    replacement: ALIAS_MAP[alias],
-  }));
+const COMMAND_ALIASES = Object.entries(ALIAS_MAP)
+  .map(([from, to]) => ({
+    from: normalizeText(from),
+    to: tokenize(to),
+  }))
+  .sort((a, b) => {
+    return b.from.split(' ').length - a.from.split(' ').length;
+  });
 
-const applyAliases = text => {
-  let result = text;
+const TARGET_SYNONYMS = Object.entries(SYNONYM_MAP)
+  .map(([from, to]) => ({
+    from: normalizeText(from),
+    to: normalizeText(to),
+  }))
+  .sort((a, b) => {
+    return b.from.length - a.from.length;
+  });
 
-  for (const { regex, replacement } of PRECOMPILED_ALIASES) {
-    result = result.replace(regex, (_, prefix) => `${prefix}${replacement}`);
+const OBJECT_SET = new Set(
+  OBJECT365_LABELS_VI.map(label => normalizeText(label)),
+);
+
+const OBJECT_PHRASES = OBJECT365_LABELS_VI.map(label => normalizeText(label))
+  .filter(label => label.includes(' '))
+  .sort((a, b) => b.length - a.length);
+
+const applyCommandAliases = rawText => {
+  const sourceTokens = tokenize(rawText);
+  const result = [];
+
+  let i = 0;
+
+  while (i < sourceTokens.length) {
+    let matched = false;
+
+    for (const alias of COMMAND_ALIASES) {
+      const aliasTokens = alias.from.split(' ');
+      const end = i + aliasTokens.length;
+
+      if (end > sourceTokens.length) {
+        continue;
+      }
+
+      let isMatch = true;
+
+      for (let j = 0; j < aliasTokens.length; j++) {
+        if (sourceTokens[i + j] !== aliasTokens[j]) {
+          isMatch = false;
+          break;
+        }
+      }
+
+      if (!isMatch) {
+        continue;
+      }
+
+      alias.to.forEach(token => {
+        result.push({
+          token,
+          sourceStart: i,
+          sourceEnd: end - 1,
+        });
+      });
+
+      i = end;
+      matched = true;
+      break;
+    }
+
+    if (!matched) {
+      result.push({
+        token: sourceTokens[i],
+        sourceStart: i,
+        sourceEnd: i,
+      });
+
+      i++;
+    }
+  }
+
+  return {
+    sourceTokens,
+    commandTokens: result,
+  };
+};
+
+const applyTargetSynonyms = text => {
+  let result = normalizeText(text);
+
+  for (const synonym of TARGET_SYNONYMS) {
+    const regex = new RegExp(
+      `(^|\\s)${escapeRegExp(synonym.from)}(?=\\s|$)`,
+      'g',
+    );
+
+    result = result.replace(regex, `$1${synonym.to}`);
   }
 
   return result;
 };
 
-const buildPhraseMap = () => {
-  const map = new Map();
+const classifyCommand = commandTokens => {
+  const classified = [];
 
-  const add = (words, type) => {
-    words.forEach(word => {
-      map.set(normalizeText(word), type);
-    });
-  };
+  for (const item of commandTokens) {
+    const token = normalizeText(item.token);
 
-  add(ACTION_WORDS, 'ACTION');
-  add(FUNCTION_KEYWORDS.OBSTACLE, 'OBSTACLE_KEYWORD');
-  add(FUNCTION_KEYWORDS.CURRENCY, 'CURRENCY_KEYWORD');
-  add(FUNCTION_KEYWORDS.TEXT, 'TEXT_KEYWORD');
-  add(FUNCTION_KEYWORDS.GENERAL, 'GENERAL_KEYWORD');
-  add(FUNCTION_KEYWORDS.FIND, 'FIND_KEYWORD');
-  add(COMMON_WORDS, 'COMMON');
-
-  return map;
-};
-
-const PHRASE_MAP = buildPhraseMap();
-
-const OBJECT_SET = new Set(
-  OBJECT365_LABELS_VI.map(item => normalizeText(item)),
-);
-
-const OBJECT_PHRASES = [...OBJECT_SET]
-  .filter(item => item.includes(' '))
-  .sort((a, b) => b.length - a.length);
-
-const classifyText = text => {
-  const words = text.split(' ').filter(Boolean);
-  const results = [];
-  let i = 0;
-
-  while (i < words.length) {
-    let matched = false;
-
-    for (const objectPhrase of OBJECT_PHRASES) {
-      const objectWords = objectPhrase.split(' ');
-
-      if (i + objectWords.length > words.length) {
-        continue;
-      }
-
-      const candidate = words.slice(i, i + objectWords.length).join(' ');
-
-      if (candidate === objectPhrase) {
-        results.push({
-          text: candidate,
-          type: 'OBJECT',
-        });
-
-        i += objectWords.length;
-        matched = true;
-        break;
-      }
-    }
-
-    if (matched) {
-      continue;
-    }
-
-    const word = words[i];
-
-    if (OBJECT_SET.has(word)) {
-      results.push({
-        text: word,
+    if (OBJECT_SET.has(token)) {
+      classified.push({
+        ...item,
         type: 'OBJECT',
       });
-
-      i += 1;
       continue;
     }
 
-    if (PHRASE_MAP.has(word)) {
-      results.push({
-        text: word,
-        type: PHRASE_MAP.get(word),
+    if (OBJECT_PHRASES.some(phrase => token === phrase)) {
+      classified.push({
+        ...item,
+        type: 'OBJECT',
       });
-
-      i += 1;
       continue;
     }
 
-    results.push({
-      text: word,
+    if (FUNCTION_KEYWORDS.OBSTACLE.includes(token)) {
+      classified.push({
+        ...item,
+        type: 'OBSTACLE_KEYWORD',
+      });
+      continue;
+    }
+
+    if (FUNCTION_KEYWORDS.CURRENCY.includes(token)) {
+      classified.push({
+        ...item,
+        type: 'CURRENCY_KEYWORD',
+      });
+      continue;
+    }
+
+    if (FUNCTION_KEYWORDS.TEXT.includes(token)) {
+      classified.push({
+        ...item,
+        type: 'TEXT_KEYWORD',
+      });
+      continue;
+    }
+
+    if (FUNCTION_KEYWORDS.GENERAL.includes(token)) {
+      classified.push({
+        ...item,
+        type: 'GENERAL_KEYWORD',
+      });
+      continue;
+    }
+
+    if (FUNCTION_KEYWORDS.FIND.includes(token)) {
+      classified.push({
+        ...item,
+        type: 'FIND_KEYWORD',
+      });
+      break;
+    }
+
+    if (ACTION_WORDS.includes(token)) {
+      classified.push({
+        ...item,
+        type: 'ACTION',
+      });
+      continue;
+    }
+
+    if (COMMON_WORDS.includes(token)) {
+      classified.push({
+        ...item,
+        type: 'COMMON',
+      });
+      continue;
+    }
+
+    classified.push({
+      ...item,
       type: 'UNKNOWN',
     });
-
-    i += 1;
   }
 
-  return results;
+  return classified;
+};
+
+const hasType = (classified, type) => {
+  return classified.some(item => item.type === type);
 };
 
 const detectIntent = classified => {
-  const hasType = type => classified.some(item => item.type === type);
+  const hasAction = hasType(classified, 'ACTION');
+  const hasObstacle = hasType(classified, 'OBSTACLE_KEYWORD');
+  const hasCurrency = hasType(classified, 'CURRENCY_KEYWORD');
+  const hasText = hasType(classified, 'TEXT_KEYWORD');
+  const hasGeneral = hasType(classified, 'GENERAL_KEYWORD');
+  const hasFind = hasType(classified, 'FIND_KEYWORD');
 
-  const obstacleCount = classified.filter(
-    item => item.type === 'OBSTACLE_KEYWORD',
-  ).length;
-
-  const currencyCount = classified.filter(
-    item => item.type === 'CURRENCY_KEYWORD',
-  ).length;
-
-  const textCount = classified.filter(
-    item => item.type === 'TEXT_KEYWORD',
-  ).length;
-
-  const generalCount = classified.filter(
-    item => item.type === 'GENERAL_KEYWORD',
-  ).length;
-
-  const hasFind = hasType('FIND_KEYWORD');
-  const hasAction = hasType('ACTION');
-
-  const hasOnAction = classified.some(item =>
-    ['bật', 'mở', 'chạy'].includes(item.text),
-  );
-
-  const hasOffAction = classified.some(item =>
-    ['tắt', 'ngừng', 'dừng', 'hủy'].includes(item.text),
-  );
-
-  if (obstacleCount > 0) {
-    if (hasOffAction) {
+  if (hasObstacle) {
+    if (
+      classified.some(item => {
+        return (
+          item.token === 'tắt' ||
+          item.token === 'ngừng' ||
+          item.token === 'dừng' ||
+          item.token === 'hủy'
+        );
+      })
+    ) {
       return 'OBSTACLE_OFF';
     }
 
-    if (hasOnAction || hasAction) {
-      return 'OBSTACLE_ON';
-    }
+    return 'OBSTACLE_ON';
   }
 
-  if (currencyCount > 0 && hasAction) {
-    return 'SCAN_CURRENCY';
+  if (hasCurrency && hasAction) {
+    return 'CURRENCY';
   }
 
-  if (textCount > 0 && hasAction) {
-    return 'SCAN_TEXT';
+  if (hasText && hasAction) {
+    return 'TEXT';
   }
 
-  if (generalCount > 0 && hasAction && !hasFind) {
-    return 'SCAN_GENERAL';
+  if (hasGeneral && !hasFind) {
+    return 'GENERAL';
   }
 
   if (hasFind) {
     return 'FIND';
   }
 
-  return null;
+  return 'UNKNOWN';
 };
 
-const extractTargetText = text => {
-  let result = text;
-  const stopWords = [...TARGET_STOP_WORDS].sort((a, b) => b.length - a.length);
-
-  for (const word of stopWords) {
-    const regex = new RegExp(`(^|\\s)${escapeRegExp(word)}(?=\\s|$)`, 'gi');
-    result = result.replace(regex, ' ');
-  }
-
-  return result.replace(/\s+/g, ' ').trim();
-};
-
-const createObjectFuse = OBJECT_FUSE_THRESH => {
-  return new Fuse(OBJECT365_LABELS_VI, {
-    includeScore: true,
-    threshold: OBJECT_FUSE_THRESH,
+const findKeywordPosition = classified => {
+  const keyword = classified.find(item => {
+    return item.type === 'FIND_KEYWORD';
   });
-};
 
-const getNGrams = (text, maxWords) => {
-  const words = text.split(' ').filter(Boolean);
-  const nGrams = [];
-
-  for (let i = 0; i < words.length; i++) {
-    let chunk = '';
-
-    for (let j = 0; j < maxWords && i + j < words.length; j++) {
-      chunk += `${j > 0 ? ' ' : ''}${words[i + j]}`;
-      nGrams.push(chunk);
-    }
-  }
-
-  return nGrams;
-};
-
-const findObject = (targetText, intentConfig) => {
-  const {
-    NGRAM_MAX_WORDS,
-    OBJECT_FUSE_THRESH,
-    MIN_CHAR_MATCH,
-    SINGLE_WORD_SCORE,
-    MULTI_WORD_SCORE,
-    EARLY_EXIT_SCORE,
-  } = intentConfig;
-
-  if (!targetText || targetText.length < MIN_CHAR_MATCH) {
+  if (!keyword) {
     return null;
   }
 
-  const objectFuse = createObjectFuse(OBJECT_FUSE_THRESH);
-  const exactObject = OBJECT365_LABELS_VI.find(
-    item => normalizeText(item) === targetText,
-  );
-
-  if (exactObject) {
-    return exactObject;
-  }
-
-  const chunks = getNGrams(targetText, NGRAM_MAX_WORDS).sort(
-    (a, b) => b.length - a.length,
-  );
-
-  const prioritizedChunks = [
-    ...chunks.filter(
-      chunk => chunk.includes(' ') && chunk.length >= MIN_CHAR_MATCH,
-    ),
-    ...chunks.filter(
-      chunk => !chunk.includes(' ') && chunk.length >= MIN_CHAR_MATCH,
-    ),
-  ];
-
-  let bestMatchName = null;
-  let bestScore = 1;
-
-  for (const chunk of prioritizedChunks) {
-    const results = objectFuse.search(chunk);
-
-    if (!results.length) {
-      continue;
-    }
-
-    const match = results[0];
-    const allowedScore = chunk.includes(' ')
-      ? MULTI_WORD_SCORE
-      : SINGLE_WORD_SCORE;
-
-    if (match.score < bestScore && match.score <= allowedScore) {
-      bestScore = match.score;
-      bestMatchName = match.item;
-
-      if (chunk.includes(' ') && match.score <= EARLY_EXIT_SCORE) {
-        break;
-      }
-    }
-  }
-
-  return bestMatchName;
+  return {
+    sourceStart: keyword.sourceStart,
+    sourceEnd: keyword.sourceEnd,
+  };
 };
 
-export const analyzeCommand = (rawText, intentConfig, debugLogging = false) => {
-  let text = normalizeText(rawText);
-  text = applyAliases(text);
-
-  if (debugLogging) {
-    console.log('SAU KHI XỬ LÝ ALIAS:', text);
+const extractTargetFromSource = (sourceTokens, keywordPosition) => {
+  if (!keywordPosition) {
+    return '';
   }
 
-  const classified = classifyText(text);
+  const targetTokens = sourceTokens.slice(keywordPosition.sourceEnd + 1);
 
-  if (debugLogging) {
-    console.log('PHÂN LOẠI:', classified);
+  return targetTokens.join(' ').trim();
+};
+
+const fuseObject = (target, scoreThreshold, debugLogging) => {
+  const normalizedTarget = normalizeText(target);
+
+  if (!normalizedTarget) {
+    return null;
   }
 
-  const detectedIntent = detectIntent(classified);
+  const fuse = new Fuse(OBJECT365_LABELS_VI, {
+    includeScore: true,
+    threshold: scoreThreshold,
+    ignoreLocation: true,
+  });
 
-  if (debugLogging) {
-    console.log('INTENT:', detectedIntent);
+  const results = fuse.search(normalizedTarget);
+
+  if(debugLogging){
+    console.log('[FUSE] target:', normalizedTarget);
+    console.log(
+      '[FUSE] results:',
+      results.slice(0, 10).map(item => ({
+        name: item.item,
+        score: item.score,
+      })),
+    );
   }
 
-  if (detectedIntent === 'OBSTACLE_ON') {
-    return {
-      intent: 'OBSTACLE_ON',
-    };
+  if (!results.length) {
+    return null;
   }
 
-  if (detectedIntent === 'OBSTACLE_OFF') {
-    return {
-      intent: 'OBSTACLE_OFF',
-    };
-  }
+  const bestMatch = results[0];
 
-  if (detectedIntent === 'SCAN_GENERAL') {
-    return {
-      intent: 'SCAN_GENERAL',
-    };
-  }
-
-  if (detectedIntent === 'SCAN_CURRENCY') {
-    return {
-      intent: 'SCAN_CURRENCY',
-    };
-  }
-
-  if (detectedIntent === 'SCAN_TEXT') {
-    return {
-      intent: 'SCAN_TEXT',
-    };
-  }
-
-  if (detectedIntent === 'FIND') {
-    const targetText = extractTargetText(text);
-
-    if (debugLogging) {
-      console.log('TARGET RAW:', targetText);
-    }
-
-    if (targetText.length < intentConfig.MIN_CHAR_MATCH) {
-      return {
-        intent: 'INVALID',
-      };
-    }
-
-    const bestMatchName = findObject(targetText, intentConfig);
-
-    if (debugLogging) {
-      console.log('OBJECT MATCH:', bestMatchName);
-    }
-
-    if (bestMatchName) {
-      return {
-        intent: 'FIND',
-        targetName: bestMatchName,
-      };
-    }
-
-    return {
-      intent: 'INVALID',
-    };
+  if (bestMatch.score === undefined || bestMatch.score > scoreThreshold) {
+    return null;
   }
 
   return {
-    intent: 'INVALID',
+    name: bestMatch.item,
+    score: 1 - bestMatch.score,
   };
 };
+
+export const analyzeCommand = (
+  rawText,
+  intentConfig,
+  debugLogging = false,
+) => {
+  const normalizedRaw = normalizeText(rawText);
+
+  if (!normalizedRaw) {
+    return {
+      intent: 'UNKNOWN',
+      targetName: null,
+    };
+  }
+
+  const { OBJECT_FUSE_THRESH } = intentConfig;
+
+  const { sourceTokens, commandTokens } = applyCommandAliases(normalizedRaw);
+
+  const classified = classifyCommand(commandTokens);
+  const intent = detectIntent(classified);
+
+  if (debugLogging) {
+    console.log('[INTENT] raw:', normalizedRaw);
+    console.log('[INTENT] sourceTokens:', sourceTokens);
+    console.log('[INTENT] commandTokens:', commandTokens);
+    console.log('[INTENT] classified:', classified);
+    console.log('[INTENT] intent:', intent);
+  }
+
+  if (
+    intent === 'OBSTACLE_ON' ||
+    intent === 'OBSTACLE_OFF' ||
+    intent === 'CURRENCY' ||
+    intent === 'TEXT' ||
+    intent === 'GENERAL'
+  ) {
+    return {
+      intent,
+      targetName: null,
+    };
+  }
+
+  if (intent !== 'FIND') {
+    return {
+      intent: 'UNKNOWN',
+      targetName: null,
+    };
+  }
+
+  const keywordPosition = findKeywordPosition(classified);
+
+  if (!keywordPosition) {
+    return {
+      intent: 'UNKNOWN',
+      targetName: null,
+    };
+  }
+
+  const rawTarget = extractTargetFromSource(sourceTokens, keywordPosition);
+
+  const synonymTarget = applyTargetSynonyms(rawTarget);
+
+  const fuseThreshold = OBJECT_FUSE_THRESH;
+
+  const objectMatch = fuseObject(synonymTarget, fuseThreshold, debugLogging);
+
+  if (debugLogging) {
+    console.log('[INTENT] keywordPosition:', keywordPosition);
+    console.log('[INTENT] rawTarget:', rawTarget);
+    console.log('[INTENT] synonymTarget:', synonymTarget);
+    console.log('[INTENT] objectMatch:', objectMatch);
+  }
+
+  return {
+    intent: 'FIND',
+    targetName: objectMatch?.name || null,
+  };
+};
+
+export default analyzeCommand;

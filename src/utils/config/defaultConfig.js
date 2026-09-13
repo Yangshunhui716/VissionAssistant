@@ -17,12 +17,8 @@ export const DEFAULT_CONFIG = {
     THREAT_COOLDOWN_MS: 4000,
     THREAT_RESET_MS: 2000,
     ALERT_CLEAR_DELAY_MS: 1000,
-    CURRENCY_COOLDOWN_MS: 4000,
-    CURRENCY_TIMEOUT_MS: 6000,
     DEBUG_DUMP_INTERVAL_MS: 3000,
     FPS_UPDATE_INTERVAL_MS: 1000,
-    SEARCH_MAX_FRAMES: 5,
-    SCAN_GENERAL_MAX_FRAMES: 10,
   },
 
   frameQuality: {
@@ -39,15 +35,17 @@ export const DEFAULT_CONFIG = {
 
   search: {
     SCORE_THRESHOLD: 0.45,
+    MAX_FRAMES: 7,
   },
 
   generalScan: {
     DIST_SMOOTHING_FACTOR: 10,
+    MAX_FRAMES: 7,
   },
 
   currency: {
     SCORE_THRESHOLD: 0.1,
-    MAX_FRAMES: 3,
+    MAX_FRAMES: 7,
     MIN_APPEARANCE_COUNT: 2,
   },
 
@@ -87,11 +85,11 @@ export const DEFAULT_CONFIG = {
     MAX_DEPTH_WEIGHT: 0.7,
     AVG_DEPTH_WEIGHT: 0.3,
 
-    DEPTH_LVL_0_5M: 200,
-    DEPTH_LVL_1M: 150,
-    DEPTH_LVL_2M: 100,
-    DEPTH_LVL_3M: 60,
-    DEPTH_LVL_5M: 30,
+    DEPTH_LVL_0_5M: 600,
+    DEPTH_LVL_1M: 500,
+    DEPTH_LVL_2M: 450,
+    DEPTH_LVL_3M: 425,
+    DEPTH_LVL_5M: 300,
   },
 
   motion: {
@@ -110,16 +108,11 @@ export const DEFAULT_CONFIG = {
   },
 
   intent: {
-    NGRAM_MAX_WORDS: 3,
-    OBJECT_FUSE_THRESH: 0.45,
-    MIN_CHAR_MATCH: 2,
-    SINGLE_WORD_SCORE: 0.15,
-    MULTI_WORD_SCORE: 0.35,
-    EARLY_EXIT_SCORE: 0.25,
+    OBJECT_FUSE_THRESH: 0.7,
   },
 
   feedback: {
-    TTS_RATE: 0.65,
+    TTS_RATE: 0.625,
     DEFAULT_LANGUAGE: 'vi-VN',
     HEARTBEAT_TIMEOUT_MS: 6000,
     HEARTBEAT_TICK_MS: 1000,

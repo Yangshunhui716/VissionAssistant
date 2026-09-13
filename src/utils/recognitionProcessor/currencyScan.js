@@ -5,26 +5,25 @@ export const processCurrencyScan = (
 ) => {
   'worklet';
 
-  const { SCORE_THRESHOLD, MAX_FRAMES, MIN_APPEARANCE_COUNT } = currencyConfig;
+  const { MAX_FRAMES, MIN_APPEARANCE_COUNT } = currencyConfig;
 
   globalThis.__currencyFrameCount = (globalThis.__currencyFrameCount || 0) + 1;
   globalThis.__currencyResults = globalThis.__currencyResults || [];
 
-  const validNotes = parsedCurrency.filter(
-    note => note.score > SCORE_THRESHOLD,
-  );
-
   const currentFrameCounts = {};
 
-  for (let i = 0; i < validNotes.length; i++) {
-    const id = validNotes[i].labelIdx;
+  for (let i = 0; i < parsedCurrency.length; i++) {
+    const id = parsedCurrency[i].labelIdx;
     currentFrameCounts[id] = (currentFrameCounts[id] || 0) + 1;
   }
 
   globalThis.__currencyResults.push(currentFrameCounts);
 
   if (globalThis.__currencyFrameCount < MAX_FRAMES) {
-    return null;
+    return {
+      done: false,
+      result: null,
+    };
   }
 
   const finalCounts = {};
@@ -60,11 +59,10 @@ export const processCurrencyScan = (
     }
   }
 
-  if (resultParts.length === 0) {
-    return null;
-  }
-
-  return resultParts.join(', ');
+  return {
+    done: true,
+    result: resultParts.length === 0 ? null : resultParts.join(', '),
+  };
 };
 
 export const resetCurrencyScan = () => {

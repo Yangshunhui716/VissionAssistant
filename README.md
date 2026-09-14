@@ -43,7 +43,9 @@ VissionAssistant là ứng dụng trợ lý thị giác trên thiết bị di đ
 ## Cài đặt
 
 git clone https://github.com/Yangshunhui716/VissionAssistant.git
+
 cd VissionAssistant
+
 npm install
 
 - Khởi động Metro: npm start
@@ -52,4 +54,6 @@ npm install
 
 
 
-GitHub: https://github.com/Yangshunhui716/VissionAssistant
+## GitHub: 
+
+https://github.com/Yangshunhui716/VissionAssistant

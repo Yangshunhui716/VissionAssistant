@@ -50,6 +50,7 @@ export const ALIAS_MAP = {
   'nhìn diện': 'nhận diện',
   'súp': 'giúp',
   'diếp': 'giúp',
+  'dục':'giúp',
   'chứa': 'trước',
   'trượt': 'trước',
   'tiền': 'tìm',
@@ -57,7 +58,8 @@ export const ALIAS_MAP = {
   'vằn': 'văn',
   'bảng': 'bản',
   'bàng': 'bản',
-  'đầu': 'đâu'
+  'đầu': 'đâu',
+  'kìm': 'tìm'
 }
 
 export const WAKE_GRAMMAR = [

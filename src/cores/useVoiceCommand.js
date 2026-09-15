@@ -120,11 +120,9 @@ export const useVoiceCommand = (
       setIsScanningText(false);
       setIsScanningCurrency(false);
       setIsObstacleActive(true);
-
       playFeedback(PROMPTS.obstacle.on);
     } else if (intent === 'OBSTACLE_OFF') {
       setIsObstacleActive(false);
-
       playFeedback(PROMPTS.obstacle.off);
     } else if (intent === 'FIND') {
       setIsScanningGeneral(false);

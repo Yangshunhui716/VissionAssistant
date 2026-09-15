@@ -265,7 +265,7 @@ const styles = StyleSheet.create({
 
   resultText: {
     color: '#16A34A',
-    fontSize: 17,
+    fontSize: 15,
     fontWeight: '600',
     textAlign: 'center',
     lineHeight: 23,

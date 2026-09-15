@@ -71,7 +71,6 @@ export const useFeedbackController = () => {
         if (incomingPriority === feedbackConfig.PRIORITY_INTERRUPT) {
           Tts.stop();
         }
-
         Tts.speak(promptObj.tts);
         currentPriorityRef.current = incomingPriority;
         lastActionTimeRef.current = Date.now();

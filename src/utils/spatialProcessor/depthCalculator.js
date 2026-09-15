@@ -93,9 +93,13 @@ export const translateDepthToText = (rawVal, spatialConfig) => {
     return 'Khoảng 3 mét';
   }
 
+  if (rawVal > spatialConfig.DEPTH_LVL_4M) {
+    return 'Khoảng 4 mét';
+  }
+
   if (rawVal > spatialConfig.DEPTH_LVL_5M) {
     return 'Khoảng 5 mét';
   }
 
-  return 'Khá xa';
+  return 'Trên 5 mét';
 };

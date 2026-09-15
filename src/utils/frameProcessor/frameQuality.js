@@ -47,7 +47,6 @@ export function analyzeFrameQuality(
 
   try {
     rgba = Mat.createFromVisionCameraFrameBuffer(height, width, 4, srcPixels);
-
     gray = Mat.create(0, 0, DataTypes.CV_8UC1);
 
     OpenCV.cvtColor(rgba, gray, ColorConversionCodes.COLOR_RGBA2GRAY);
@@ -62,12 +61,10 @@ export function analyzeFrameQuality(
     );
 
     const analyzeWidth = Math.max(1, Math.round(gray.cols * scale));
-
     const analyzeHeight = Math.max(1, Math.round(gray.rows * scale));
 
     if (analyzeWidth !== gray.cols || analyzeHeight !== gray.rows) {
       resizedGray = Mat.create(0, 0, DataTypes.CV_8UC1);
-
       resizeSize = Size.create(analyzeWidth, analyzeHeight);
 
       OpenCV.resize(
@@ -90,7 +87,6 @@ export function analyzeFrameQuality(
     }
 
     meanMat = Mat.create(1, 1, DataTypes.CV_64FC1);
-
     stddevMat = Mat.create(1, 1, DataTypes.CV_64FC1);
 
     OpenCV.meanStdDev(resizedGray, meanMat, stddevMat);
@@ -158,13 +154,11 @@ export function analyzeFrameQuality(
     );
 
     lapMean = Mat.create(1, 1, DataTypes.CV_64FC1);
-
     lapStddev = Mat.create(1, 1, DataTypes.CV_64FC1);
 
     OpenCV.meanStdDev(laplacian, lapMean, lapStddev);
 
     const lapStdBuffer = lapStddev.toBuffer('float64');
-
     const lapStd = lapStdBuffer?.buffer?.[0];
 
     if (lapStd === undefined || !Number.isFinite(lapStd)) {
@@ -217,15 +211,11 @@ export function analyzeFrameQuality(
     if (rgba) rgba.release();
     if (gray) gray.release();
     if (resizedGray) resizedGray.release();
-
     if (meanMat) meanMat.release();
     if (stddevMat) stddevMat.release();
-
     if (laplacian) laplacian.release();
-
     if (lapMean) lapMean.release();
     if (lapStddev) lapStddev.release();
-
     if (resizeSize) resizeSize.release();
   }
 }

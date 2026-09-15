@@ -1,5 +1,4 @@
 import { createContext, useContext, useEffect, useState } from 'react';
-
 import { DEFAULT_CONFIG } from '../utils/config/defaultConfig';
 import {
   loadRuntimeConfig,
@@ -28,26 +27,17 @@ export function RuntimeConfigProvider({ children }) {
   useEffect(() => {
     async function load() {
       const savedConfig = await loadRuntimeConfig();
-
       setConfig(savedConfig);
       setIsLoaded(true);
     }
-
     load();
   }, []);
 
-  /**
-   * @param {RuntimeConfig} newConfig
-   */
   const updateConfig = async newConfig => {
     setConfig(newConfig);
     await saveRuntimeConfig(newConfig);
   };
 
-  /**
-   * @param {keyof RuntimeConfig} section
-   * @param {Object} values
-   */
   const updateSection = async (section, values) => {
     const newConfig = {
       ...config,
@@ -63,9 +53,7 @@ export function RuntimeConfigProvider({ children }) {
 
   const resetConfig = async () => {
     await resetRuntimeConfig();
-
     const freshConfig = await loadRuntimeConfig();
-
     setConfig(freshConfig);
   };
 
@@ -84,9 +72,6 @@ export function RuntimeConfigProvider({ children }) {
   );
 }
 
-/**
- * @returns {RuntimeConfigContextValue}
- */
 export function useRuntimeConfig() {
   const context = useContext(RuntimeConfigContext);
 

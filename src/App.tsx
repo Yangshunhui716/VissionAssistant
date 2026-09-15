@@ -96,7 +96,7 @@ const AppContent: React.FC = () => {
         playFeedback(PROMPTS.scan.empty);
       }
     },
-    [playFeedback, isObstacleActive],
+    [playFeedback],
   );
 
   const handleCurrencyScanComplete = useCallback(
@@ -285,13 +285,13 @@ const AppContent: React.FC = () => {
       if (targetToFind) {
         playFeedback(PROMPTS.find.start(targetToFind));
       }
-      if(isScanningGeneral) {
+      if (isScanningGeneral) {
         playFeedback(PROMPTS.scan.start);
       }
-      if(isScanningCurrency) {
+      if (isScanningCurrency) {
         playFeedback(PROMPTS.currency.start);
       }
-      if(isScanningText) {
+      if (isScanningText) {
         playFeedback(PROMPTS.text.start);
       }
     } else {

@@ -139,12 +139,15 @@ export const useVision = (
 
   const getDepthLevel = text => {
     if (text === 'Dưới nửa mét') {
-      return 3;
+      return 4;
     }
     if (text === 'Khoảng 1 mét') {
-      return 2;
+      return 3;
     }
     if (text === 'Khoảng 2 mét') {
+      return 2;
+    }
+    if (text === 'Khoảng 3 mét') {
       return 1;
     }
     return 0;
@@ -319,12 +322,62 @@ export const useVision = (
 
             if (isProcessingText.value) {
               isProcessingText.value = false;
+              globalThis.__pendingMidasTask = null;
               if (globalThis.__lastThreatTarget !== '') {
                 globalThis.__lastThreatTarget = '';
                 scheduleOnRN(clearAlert);
               }
               scheduleOnRN(runTextRecognition);
               return;
+            }
+
+            if (isScanningCurrency) {
+              globalThis.__pendingMidasTask = null;
+              if (globalThis.__lastThreatTarget !== '') {
+                globalThis.__lastThreatTarget = '';
+                scheduleOnRN(clearAlert);
+              }
+
+              const yoloResized = preprocessFrame(
+                frameData,
+                frame.width,
+                frame.height,
+                YOLO_SIZE,
+                YOLO_SIZE,
+                yoloBuffer,
+                'CHW',
+                frame.orientation,
+                frame.isMirrored,
+                null,
+              );
+
+              const currencyOutputs = yoloCurrencyModel.model.runSync([
+                yoloResized.buffer,
+              ]);
+
+              const parsedCurrency = parseYoloOutput(
+                currencyOutputs,
+                YOLO_SIZE,
+                currencyConfig.SCORE_THRESHOLD,
+                debugConfig.logging,
+              );
+
+              const resultCurrencyScan = processCurrencyScan(
+                parsedCurrency,
+                CURRENCY_LABELS_VI,
+                currencyConfig,
+              );
+
+              if (resultCurrencyScan.done) {
+                scheduleOnRN(
+                  onCurrencyScanComplete,
+                  resultCurrencyScan.result,
+                );
+              }
+
+              return;
+            } else {
+              resetCurrencyScan();
             }
 
             if (globalThis.__pendingMidasTask) {
@@ -398,54 +451,6 @@ export const useVision = (
                 }
               }
               return;
-            }
-
-            if (isScanningCurrency) {
-              if (globalThis.__lastThreatTarget !== '') {
-                globalThis.__lastThreatTarget = '';
-                scheduleOnRN(clearAlert);
-              }
-
-              const yoloResized = preprocessFrame(
-                frameData,
-                frame.width,
-                frame.height,
-                YOLO_SIZE,
-                YOLO_SIZE,
-                yoloBuffer,
-                'CHW',
-                frame.orientation,
-                frame.isMirrored,
-                null,
-              );
-
-              const currencyOutputs = yoloCurrencyModel.model.runSync([
-                yoloResized.buffer,
-              ]);
-
-              const parsedCurrency = parseYoloOutput(
-                currencyOutputs,
-                YOLO_SIZE,
-                currencyConfig.SCORE_THRESHOLD,
-                debugConfig.logging,
-              );
-
-              const resultCurrencyScan = processCurrencyScan(
-                parsedCurrency,
-                CURRENCY_LABELS_VI,
-                currencyConfig,
-              );
-
-              if (resultCurrencyScan.done) {
-                scheduleOnRN(
-                  onCurrencyScanComplete,
-                  resultCurrencyScan.result,
-                );
-              }
-
-              return;
-            } else {
-              resetCurrencyScan();
             }
 
             if (!searchTarget) {

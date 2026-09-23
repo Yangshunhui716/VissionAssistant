@@ -117,11 +117,9 @@ export function preprocessFrame(
     const scale = Math.min(dstWidth / logicalWidth, dstHeight / logicalHeight);
 
     const newWidth = Math.max(1, Math.round(logicalWidth * scale));
-
     const newHeight = Math.max(1, Math.round(logicalHeight * scale));
 
     resized = Mat.create(0, 0, DataTypes.CV_8UC3);
-
     resizeSize = Size.create(newWidth, newHeight);
 
     OpenCV.resize(
@@ -149,11 +147,9 @@ export function preprocessFrame(
     }
 
     const padX = Math.floor((dstWidth - newWidth) / 2);
-
     const padY = Math.floor((dstHeight - newHeight) / 2);
 
     const right = dstWidth - newWidth - padX;
-
     const bottom = dstHeight - newHeight - padY;
 
     if (boundsOutput) {
@@ -170,7 +166,6 @@ export function preprocessFrame(
       resized = null;
     } else {
       letterboxed = Mat.create(0, 0, DataTypes.CV_8UC3);
-
       borderValue = Scalar.create(114, 114, 114, 0);
 
       OpenCV.copyMakeBorder(
@@ -210,27 +205,20 @@ export function preprocessFrame(
       const bMat = channels.get(2);
 
       const r = new Uint8Array(rMat.toBuffer('uint8').buffer);
-
       const g = new Uint8Array(gMat.toBuffer('uint8').buffer);
-
       const b = new Uint8Array(bMat.toBuffer('uint8').buffer);
 
       const planeSize = dstWidth * dstHeight;
-
       const inv255 = 1 / 255;
 
       for (let i = 0; i < planeSize; i++) {
         dst[i] = r[i] * inv255;
-
         dst[planeSize + i] = g[i] * inv255;
-
         dst[planeSize * 2 + i] = b[i] * inv255;
       }
     } else {
       const pixels = new Uint8Array(letterboxed.toBuffer('uint8').buffer);
-
       const length = dstWidth * dstHeight * 3;
-
       const inv255 = 1 / 255;
 
       for (let i = 0; i < length; i++) {
@@ -238,7 +226,7 @@ export function preprocessFrame(
       }
     }
   } catch (e) {
-    console.log('Error frame preprocessor: ', e);
+    console.log('[framePreprocessor] Error frame preprocessor: ', e);
   } finally {
     if (rgba) {
       rgba.release();

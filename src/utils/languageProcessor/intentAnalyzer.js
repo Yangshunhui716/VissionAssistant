@@ -52,9 +52,32 @@ const OBJECT_SET = new Set(
   OBJECT365_LABELS_VI.map(label => normalizeText(label)),
 );
 
-const OBJECT_PHRASES = OBJECT365_LABELS_VI.map(label => normalizeText(label))
-  .filter(label => label.includes(' '))
-  .sort((a, b) => b.length - a.length);
+const COMMAND_FUSE_ITEMS = [
+  ...ACTION_WORDS.map(token => ({
+    token: normalizeText(token),
+    type: 'ACTION',
+  })),
+
+  ...Object.entries(FUNCTION_KEYWORDS).flatMap(([group, keywords]) =>
+    keywords.map(token => ({
+      token: normalizeText(token),
+      type: `${group}_KEYWORD`,
+    })),
+  ),
+];
+
+const UNIQUE_COMMAND_FUSE_ITEMS = Array.from(
+  new Map(
+    COMMAND_FUSE_ITEMS.map(item => [`${item.type}:${item.token}`, item]),
+  ).values(),
+);
+
+const COMMAND_FUSE = new Fuse(UNIQUE_COMMAND_FUSE_ITEMS, {
+  keys: ['token'],
+  includeScore: true,
+  threshold: 0.5,
+  ignoreLocation: true,
+});
 
 const applyCommandAliases = rawText => {
   const sourceTokens = tokenize(rawText);
@@ -116,21 +139,6 @@ const applyCommandAliases = rawText => {
   };
 };
 
-const applyTargetSynonyms = text => {
-  let result = normalizeText(text);
-
-  for (const synonym of TARGET_SYNONYMS) {
-    const regex = new RegExp(
-      `(^|\\s)${escapeRegExp(synonym.from)}(?=\\s|$)`,
-      'g',
-    );
-
-    result = result.replace(regex, `$1${synonym.to}`);
-  }
-
-  return result;
-};
-
 const classifyCommand = commandTokens => {
   const classified = [];
 
@@ -142,14 +150,7 @@ const classifyCommand = commandTokens => {
         ...item,
         type: 'OBJECT',
       });
-      continue;
-    }
 
-    if (OBJECT_PHRASES.some(phrase => token === phrase)) {
-      classified.push({
-        ...item,
-        type: 'OBJECT',
-      });
       continue;
     }
 
@@ -232,14 +233,13 @@ const detectIntent = classified => {
 
   if (hasObstacle) {
     if (
-      classified.some(item => {
-        return (
+      classified.some(
+        item =>
           item.token === 'tắt' ||
           item.token === 'ngừng' ||
           item.token === 'dừng' ||
-          item.token === 'hủy'
-        );
-      })
+          item.token === 'hủy',
+      )
     ) {
       return 'OBSTACLE_OFF';
     }
@@ -282,13 +282,80 @@ const findKeywordPosition = classified => {
 };
 
 const extractTargetFromSource = (sourceTokens, keywordPosition) => {
-  if (!keywordPosition) {
-    return '';
+  const targetTokens = sourceTokens.slice(keywordPosition.sourceEnd + 1);
+  return targetTokens.join(' ').trim();
+};
+
+const applyTargetSynonyms = text => {
+  let result = normalizeText(text);
+
+  for (const synonym of TARGET_SYNONYMS) {
+    const regex = new RegExp(
+      `(^|\\s)${escapeRegExp(synonym.from)}(?=\\s|$)`,
+      'g',
+    );
+
+    result = result.replace(regex, `$1${synonym.to}`);
   }
 
-  const targetTokens = sourceTokens.slice(keywordPosition.sourceEnd + 1);
+  return result;
+};
 
-  return targetTokens.join(' ').trim();
+const repairObjectCommandTokens = (
+  commandTokens,
+  classified,
+  scoreThreshold,
+  debugLogging,
+) => {
+  return commandTokens.map((item, index) => {
+    const classifiedItem = classified[index];
+
+    if (
+      classifiedItem?.type !== 'OBJECT' ||
+      classifiedItem?.type !== 'UNKNOWN'
+    ) {
+      return item;
+    }
+
+    const normalizedToken = normalizeText(item.token);
+
+    if (normalizedToken.length < 3) {
+      return item;
+    }
+
+    const results = COMMAND_FUSE.search(normalizedToken, {
+      limit: 1,
+    });
+
+    if (!results.length) {
+      return item;
+    }
+
+    const bestMatch = results[0];
+    const score = bestMatch.score ?? 1;
+
+    if (score > scoreThreshold) {
+      return item;
+    }
+
+    const repairedToken = bestMatch.item.token;
+
+    if (debugLogging) {
+      console.log('[intentAnalyzer] Object/Unknown → Command Fuse:', {
+        from: normalizedToken,
+        to: repairedToken,
+        type: bestMatch.item.type,
+        score,
+      });
+    }
+
+    return {
+      ...item,
+      token: repairedToken,
+      repairedFrom: normalizedToken,
+      repairedType: bestMatch.item.type,
+    };
+  });
 };
 
 const fuseObject = (target, scoreThreshold, debugLogging) => {
@@ -306,10 +373,10 @@ const fuseObject = (target, scoreThreshold, debugLogging) => {
 
   const results = fuse.search(normalizedTarget);
 
-  if(debugLogging){
-    console.log('[FUSE] target:', normalizedTarget);
+  if (debugLogging) {
+    console.log('[intentAnalyzer] Fuse target:', normalizedTarget);
     console.log(
-      '[FUSE] results:',
+      '[intentAnalyzer] Fuse results:',
       results.slice(0, 10).map(item => ({
         name: item.item,
         score: item.score,
@@ -321,23 +388,13 @@ const fuseObject = (target, scoreThreshold, debugLogging) => {
     return null;
   }
 
-  const bestMatch = results[0];
-
-  if (bestMatch.score === undefined || bestMatch.score > scoreThreshold) {
-    return null;
-  }
-
   return {
-    name: bestMatch.item,
-    score: 1 - bestMatch.score,
+    name: results[0].item,
+    score: 1 - results[0].score,
   };
 };
 
-export const analyzeCommand = (
-  rawText,
-  intentConfig,
-  debugLogging = false,
-) => {
+export const analyzeCommand = (rawText, intentConfig, debugLogging = false) => {
   const normalizedRaw = normalizeText(rawText);
 
   if (!normalizedRaw) {
@@ -347,63 +404,57 @@ export const analyzeCommand = (
     };
   }
 
-  const { OBJECT_FUSE_THRESH } = intentConfig;
+  const { OBJECT_FUSE_THRESH, COMMAND_FUSE_THRESH } = intentConfig;
 
   const { sourceTokens, commandTokens } = applyCommandAliases(normalizedRaw);
 
-  const classified = classifyCommand(commandTokens);
-  const intent = detectIntent(classified);
+  let aliasedCommandTokens = commandTokens;
+  let classified = classifyCommand(aliasedCommandTokens);
+  let intent = detectIntent(classified);
 
-  if (debugLogging) {
-    console.log('[INTENT] raw:', normalizedRaw);
-    console.log('[INTENT] sourceTokens:', sourceTokens);
-    console.log('[INTENT] commandTokens:', commandTokens);
-    console.log('[INTENT] classified:', classified);
-    console.log('[INTENT] intent:', intent);
+  if (intent === 'UNKNOWN') {
+    aliasedCommandTokens = repairObjectCommandTokens(
+      aliasedCommandTokens,
+      classified,
+      COMMAND_FUSE_THRESH,
+      debugLogging,
+    );
+
+    classified = classifyCommand(aliasedCommandTokens);
+    intent = detectIntent(classified);
   }
 
-  if (
-    intent === 'OBSTACLE_ON' ||
-    intent === 'OBSTACLE_OFF' ||
-    intent === 'CURRENCY' ||
-    intent === 'TEXT' ||
-    intent === 'GENERAL'
-  ) {
+  const keywordPosition = findKeywordPosition(classified);
+
+  if (debugLogging) {
+    console.log('[intentAnalyzer] raw:', normalizedRaw);
+    console.log('[intentAnalyzer] sourceTokens:', sourceTokens);
+    console.log('[intentAnalyzer] commandTokens:', aliasedCommandTokens);
+    console.log('[intentAnalyzer] classified:', classified);
+    console.log('[intentAnalyzer] intent:', intent);
+    console.log('[intentAnalyzer] keyword position:', keywordPosition);
+  }
+
+  if (intent !== 'FIND' || !keywordPosition) {
     return {
       intent,
       targetName: null,
     };
   }
 
-  if (intent !== 'FIND') {
-    return {
-      intent: 'UNKNOWN',
-      targetName: null,
-    };
-  }
-
-  const keywordPosition = findKeywordPosition(classified);
-
-  if (!keywordPosition) {
-    return {
-      intent: 'UNKNOWN',
-      targetName: null,
-    };
-  }
-
   const rawTarget = extractTargetFromSource(sourceTokens, keywordPosition);
-
   const synonymTarget = applyTargetSynonyms(rawTarget);
 
-  const fuseThreshold = OBJECT_FUSE_THRESH;
-
-  const objectMatch = fuseObject(synonymTarget, fuseThreshold, debugLogging);
+  const objectMatch = fuseObject(
+    synonymTarget,
+    OBJECT_FUSE_THRESH,
+    debugLogging,
+  );
 
   if (debugLogging) {
-    console.log('[INTENT] keywordPosition:', keywordPosition);
-    console.log('[INTENT] rawTarget:', rawTarget);
-    console.log('[INTENT] synonymTarget:', synonymTarget);
-    console.log('[INTENT] objectMatch:', objectMatch);
+    console.log('[intentAnalyzer] rawTarget:', rawTarget);
+    console.log('[intentAnalyzer] synonymTarget:', synonymTarget);
+    console.log('[intentAnalyzer] objectMatch:', objectMatch);
   }
 
   return {

@@ -104,7 +104,7 @@ export function analyzeFrameQuality(
       !Number.isFinite(stddev)
     ) {
       if (debugLogging) {
-        console.log('[QUALITY] Không đọc được Mean/StdDev');
+        console.log('[frameQuality] Không đọc được Mean/StdDev');
       }
 
       return {
@@ -116,7 +116,7 @@ export function analyzeFrameQuality(
     if (mean < DARK_THRESHOLD) {
       if (debugLogging) {
         console.log(
-          `[QUALITY] DARK | mean=${mean.toFixed(2)} ` +
+          `[frameQuality] DARK | mean=${mean.toFixed(2)} ` +
             `std=${stddev.toFixed(2)}`,
         );
       }
@@ -130,7 +130,7 @@ export function analyzeFrameQuality(
     if (mean > GLARE_THRESHOLD) {
       if (debugLogging) {
         console.log(
-          `[QUALITY] GLARE | mean=${mean.toFixed(2)} ` +
+          `[frameQuality] GLARE | mean=${mean.toFixed(2)} ` +
             `std=${stddev.toFixed(2)}`,
         );
       }
@@ -163,7 +163,7 @@ export function analyzeFrameQuality(
 
     if (lapStd === undefined || !Number.isFinite(lapStd)) {
       if (debugLogging) {
-        console.log('[QUALITY] Không đọc được Laplacian StdDev');
+        console.log('[frameQuality] Không đọc được Laplacian StdDev');
       }
 
       return {
@@ -176,7 +176,7 @@ export function analyzeFrameQuality(
 
     if (debugLogging) {
       console.log(
-        `[QUALITY] ` +
+        `[frameQuality] ` +
           `mean=${mean.toFixed(2)} ` +
           `std=${stddev.toFixed(2)} ` +
           `lapVar=${laplacianVariance.toFixed(2)}`,
@@ -185,7 +185,7 @@ export function analyzeFrameQuality(
 
     if (laplacianVariance < BLUR_THRESHOLD && stddev >= MIN_STDDEV) {
       if (debugLogging) {
-        console.log('[QUALITY] BLUR');
+        console.log('[frameQuality] BLUR');
       }
 
       return {
@@ -200,7 +200,7 @@ export function analyzeFrameQuality(
     };
   } catch (error) {
     if (debugLogging) {
-      console.log('[FrameAnalyzer] Error:', String(error));
+      console.log('[frameQuality] Error:', String(error));
     }
 
     return {

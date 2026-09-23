@@ -45,12 +45,27 @@ const aiDelegates =
 const yoloBuffer = new Float32Array(YOLO_SIZE * YOLO_SIZE * 3);
 const midasBuffer = new Float32Array(MIDAS_SIZE * MIDAS_SIZE * 3);
 
-let lastRealDepth = 0;
-let lastRealArea = 0;
-let lastTargetName = '';
+const yoloBounds = {
+  padX: 0,
+  padY: 0,
+  newW: YOLO_SIZE,
+  newH: YOLO_SIZE,
+  dstW: YOLO_SIZE,
+  dstH: YOLO_SIZE,
+};
+const midasBounds = {
+  padX: 0,
+  padY: 0,
+  newW: MIDAS_SIZE,
+  newH: MIDAS_SIZE,
+  dstW: MIDAS_SIZE,
+  dstH: MIDAS_SIZE,
+};
+
 let lastSpokenBaseName = '';
 let lastSpokenDepthLevel = 0;
 let lastSpokenTime = 0;
+let lastMotion = '';
 
 export const useVision = (
   photoOutput,
@@ -153,33 +168,12 @@ export const useVision = (
     return 0;
   };
 
-  const updateAlert = (
-    baseName,
-    displayAlertName,
-    realDepth,
-    motion,
-    currentArea,
-  ) => {
-    let depthText = '';
-    if (realDepth !== null) {
-      lastRealDepth = realDepth;
-      lastRealArea = currentArea;
-      lastTargetName = baseName;
-      depthText = translateDepthToText(realDepth, spatialConfig);
-    } else {
-      if (
-        baseName === lastTargetName &&
-        lastRealDepth > 0 &&
-        lastRealArea > 0 &&
-        currentArea > 0
-      ) {
-        const areaRatio = currentArea / lastRealArea;
-        const estimatedRawDepth = lastRealDepth * Math.sqrt(areaRatio);
-        depthText = translateDepthToText(estimatedRawDepth, spatialConfig);
-      } else {
-        depthText = 'Đang đo';
-      }
-    }
+  const updateAlert = (baseName, displayAlertName, realDepth, motion) => {
+    const depthText =
+      realDepth !== null
+        ? translateDepthToText(realDepth, spatialConfig)
+        : 'Đang ước tính';
+
     setDetectedObj(prev => {
       if (
         prev.name === displayAlertName &&
@@ -188,6 +182,7 @@ export const useVision = (
       ) {
         return prev;
       }
+
       return {
         name: displayAlertName,
         depth: depthText,
@@ -201,16 +196,43 @@ export const useVision = (
       const now = Date.now();
       const isDifferentTarget = baseName !== lastSpokenBaseName;
       const isCloser = currentDepthLevel > lastSpokenDepthLevel;
+      const isMotionChanged = motion !== lastMotion;
+      const isMoving = motion !== 'Trạng thái tĩnh';
       const isTimeUp = now - lastSpokenTime > visionConfig.THREAT_COOLDOWN_MS;
-      if (isDifferentTarget || isCloser || isTimeUp) {
-        lastSpokenBaseName = baseName;
-        lastSpokenDepthLevel = currentDepthLevel;
-        lastSpokenTime = now;
-        onThreatDetected(`${displayAlertName}, cách ${depthText}, ${motion}`);
+
+      let shouldAnnounce = false;
+      let speechText = '';
+
+      if (isDifferentTarget) {
+        shouldAnnounce = true;
+        speechText = `${displayAlertName}, cách ${depthText}`;
+      } else if (
+        isCloser || isMotionChanged
+      ) {
+        if (!isMoving && isTimeUp){
+          shouldAnnounce = true;
+          speechText = `${displayAlertName}, cách ${depthText}`;
+        } else if ((isMoving && (now - lastSpokenTime > visionConfig.THREAT_RESET_MS))||isCloser) {
+          shouldAnnounce = true;
+          speechText = `${depthText}, ${motion}`;
+        }
       }
+
+      if (!shouldAnnounce) {
+        return;
+      }
+
+      lastSpokenBaseName = baseName;
+      lastSpokenDepthLevel = currentDepthLevel;
+      lastSpokenTime = now;
+      lastMotion = motion;
+
+      onThreatDetected(speechText);
     } else {
       if (Date.now() - lastSpokenTime > visionConfig.THREAT_RESET_MS) {
+        lastSpokenBaseName
         lastSpokenDepthLevel = 0;
+        lastMotion = '';
       }
     }
   };
@@ -246,13 +268,18 @@ export const useVision = (
       onTextScanComplete(text);
     } catch (e) {
       if (debugConfig.logging) {
-        console.error('Error OCR: ', e);
+        console.error('[useVision] Error OCR: ', e);
       }
       onTextScanComplete('');
     } finally {
       isProcessingText.value = false;
     }
-  }, [photoOutput, onTextScanComplete, debugConfig.enabled, debugConfig.logging]);
+  }, [
+    photoOutput,
+    onTextScanComplete,
+    debugConfig.enabled,
+    debugConfig.logging,
+  ]);
 
   const frameOutput = useFrameOutput(
     {
@@ -369,10 +396,7 @@ export const useVision = (
               );
 
               if (resultCurrencyScan.done) {
-                scheduleOnRN(
-                  onCurrencyScanComplete,
-                  resultCurrencyScan.result,
-                );
+                scheduleOnRN(onCurrencyScanComplete, resultCurrencyScan.result);
               }
 
               return;
@@ -383,14 +407,7 @@ export const useVision = (
             if (globalThis.__pendingMidasTask) {
               const task = globalThis.__pendingMidasTask;
               globalThis.__pendingMidasTask = null;
-              const midasBounds = {
-                padX: 0,
-                padY: 0,
-                newW: MIDAS_SIZE,
-                newH: MIDAS_SIZE,
-                dstW: MIDAS_SIZE,
-                dstH: MIDAS_SIZE,
-              };
+
               const midasResized = preprocessFrame(
                 frameData,
                 frame.width,
@@ -404,6 +421,7 @@ export const useVision = (
                 null,
                 midasBounds,
               );
+
               if (midasModel.model) {
                 const midasOutputs = midasModel.model.runSync([
                   midasResized.buffer,
@@ -436,7 +454,6 @@ export const useVision = (
                     task.displayAlertName,
                     rawDepth,
                     task.motionState,
-                    task.currentArea,
                   );
                 } else if (task.type === 'SEARCH') {
                   const spatialMessage = analyzeSpatialObject(
@@ -473,6 +490,7 @@ export const useVision = (
                 scheduleOnRN(updateList, []);
                 scheduleOnRN(updateDebugImage, null);
               }
+
               return;
             }
 
@@ -483,15 +501,6 @@ export const useVision = (
               globalThis.__lastProcessTime = now;
 
               const reportData = forceCapture ? {} : null;
-
-              const yoloBounds = {
-                padX: 0,
-                padY: 0,
-                newW: YOLO_SIZE,
-                newH: YOLO_SIZE,
-                dstW: YOLO_SIZE,
-                dstH: YOLO_SIZE,
-              };
 
               const yoloResized = preprocessFrame(
                 frameData,
@@ -555,15 +564,6 @@ export const useVision = (
                     parsedObject,
                     OBJECT365_LABELS_VI,
                   );
-
-                  const midasBounds = {
-                    padX: 0,
-                    padY: 0,
-                    newW: MIDAS_SIZE,
-                    newH: MIDAS_SIZE,
-                    dstW: MIDAS_SIZE,
-                    dstH: MIDAS_SIZE,
-                  };
 
                   const midasResized = preprocessFrame(
                     frameData,
@@ -697,39 +697,28 @@ export const useVision = (
                       now - (globalThis.__lastMidasTime || 0);
 
                     if (
-                      (!globalThis.__lastDepthMap ||
-                        timeSinceLastMidas > visionConfig.MIDAS_SEARCH_INTERVAL_MS) &&
-                      midasModel.model
+                      timeSinceLastMidas > visionConfig.MIDAS_SEARCH_INTERVAL_MS
                     ) {
-                      if (!globalThis.__pendingMidasTask) {
-                        globalThis.__pendingMidasTask = {
-                          type: 'SEARCH',
-                          obj: searchResult.item,
-                          targetName: searchTarget,
-                          yoloBounds: {
-                            padX: yoloBounds.padX,
-                            padY: yoloBounds.padY,
-                            newW: yoloBounds.newW,
-                            newH: yoloBounds.newH,
-                            dstW: yoloBounds.dstW,
-                            dstH: yoloBounds.dstH,
-                          },
-                        };
-                      }
+                      globalThis.__pendingMidasTask = {
+                        type: 'SEARCH',
+                        obj: searchResult.item,
+                        targetName: searchTarget,
+                        yoloBounds: {
+                          padX: yoloBounds.padX,
+                          padY: yoloBounds.padY,
+                          newW: yoloBounds.newW,
+                          newH: yoloBounds.newH,
+                          dstW: yoloBounds.dstW,
+                          dstH: yoloBounds.dstH,
+                        },
+                      };
                     } else {
                       const spatialMessage = analyzeSpatialObject(
                         searchResult.item,
                         searchTarget,
                         globalThis.__lastDepthMap,
                         yoloBounds,
-                        {
-                          padX: 0,
-                          padY: 0,
-                          newW: MIDAS_SIZE,
-                          newH: MIDAS_SIZE,
-                          dstW: MIDAS_SIZE,
-                          dstH: MIDAS_SIZE,
-                        },
+                        midasBounds,
                         spatialConfig,
                       );
                       scheduleOnRN(onSearchComplete, true, spatialMessage);
@@ -763,7 +752,7 @@ export const useVision = (
                   OBJECT365_LABELS_VI,
                   globalThis.__lastThreatTarget,
                   obstacleConfig,
-                  yoloBounds
+                  yoloBounds,
                 );
 
                 const motionState = mostDangerousTarget
@@ -794,7 +783,7 @@ export const useVision = (
                   if (
                     timeSinceLastMidas > visionConfig.MIDAS_DELAY_MS ||
                     (isNewTarget &&
-                      timeSinceLastMidas > visionConfig.MIDAS_NEW_TARGET_DELAY_MS)
+                      timeSinceLastMidas > visionConfig.MIDAS_TARGET_DELAY_MS)
                   ) {
                     globalThis.__pendingMidasTask = {
                       type: 'THREAT',
@@ -813,14 +802,33 @@ export const useVision = (
                       },
                     };
                   } else {
-                    scheduleOnRN(
-                      updateAlert,
-                      targetName,
-                      displayAlertName,
-                      null,
-                      motionState,
-                      currentArea,
-                    );
+                    if (
+                      timeSinceLastMidas > visionConfig.MIDAS_TARGET_DELAY_MS
+                    ) {
+                      const rawDepth = getDepthFromMidas(
+                        mostDangerousTarget,
+                        globalThis.__lastDepthMap,
+                        yoloBounds,
+                        midasBounds,
+                        spatialConfig,
+                        debugConfig.logging,
+                      );
+                      scheduleOnRN(
+                        updateAlert,
+                        targetName,
+                        displayAlertName,
+                        rawDepth,
+                        motionState,
+                      );
+                    } else {
+                      scheduleOnRN(
+                        updateAlert,
+                        targetName,
+                        displayAlertName,
+                        null,
+                        motionState,
+                      );
+                    }
                   }
                 } else {
                   const timeSinceLastSeen =
@@ -844,7 +852,7 @@ export const useVision = (
           }
         } catch (e) {
           if (debugConfig.logging) {
-            console.error('Error Worklet:', String(e));
+            console.error('[useVision] Error Worklet:', String(e));
           }
         } finally {
           frame.dispose();

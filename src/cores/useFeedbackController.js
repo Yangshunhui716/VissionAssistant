@@ -40,9 +40,7 @@ export const useFeedbackController = () => {
       const timeSinceLastAction = Date.now() - lastActionTimeRef.current;
 
       if (timeSinceLastAction > feedbackConfig.HEARTBEAT_TIMEOUT_MS) {
-        Vibration.vibrate(
-          feedbackConfig.HEARTBEAT_VIBE_DURATION
-        );
+        Vibration.vibrate(feedbackConfig.HEARTBEAT_VIBE_DURATION);
 
         lastActionTimeRef.current = Date.now();
       }
@@ -59,16 +57,20 @@ export const useFeedbackController = () => {
     promptObj => {
       if (!promptObj) return;
 
-      if (promptObj.ui) {
-        setUiTranscript(promptObj.ui);
-      }
-
-      if (!promptObj.tts) return;
-
-      const incomingPriority = promptObj.priority ?? feedbackConfig.PRIORITY_DEFAULT;
+      const incomingPriority =
+        promptObj.priority ?? feedbackConfig.PRIORITY_DEFAULT;
 
       if (incomingPriority <= currentPriorityRef.current) {
-        if (incomingPriority === feedbackConfig.PRIORITY_INTERRUPT) {
+        if (promptObj.ui) {
+          setUiTranscript(promptObj.ui);
+        }
+
+        if (!promptObj.tts) return;
+
+        if (
+          incomingPriority === feedbackConfig.PRIORITY_INTERRUPT ||
+          incomingPriority < currentPriorityRef.current
+        ) {
           Tts.stop();
         }
         Tts.speak(promptObj.tts);
@@ -96,7 +98,11 @@ export const useFeedbackController = () => {
         lastActionTimeRef.current = Date.now();
       },
     }),
-    [feedbackConfig.HAPTIC_WAKE_UP, feedbackConfig.HAPTIC_SUCCESS, feedbackConfig.HAPTIC_ERROR],
+    [
+      feedbackConfig.HAPTIC_WAKE_UP,
+      feedbackConfig.HAPTIC_SUCCESS,
+      feedbackConfig.HAPTIC_ERROR,
+    ],
   );
 
   return {

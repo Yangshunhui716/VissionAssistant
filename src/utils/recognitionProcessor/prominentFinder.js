@@ -20,8 +20,7 @@ const getProminentObject = (
     const { cx, cy } = getBoxCenters(obj);
 
     const distToCenter = Math.sqrt(
-      Math.pow(cx - frameCenterX, 2) +
-      Math.pow(cy - frameCenterY, 2),
+      Math.pow(cx - frameCenterX, 2) + Math.pow(cy - frameCenterY, 2),
     );
 
     const weight = area / (distToCenter + distanceSmoothingFactor);
@@ -43,7 +42,7 @@ export const processGeneralScan = (
 ) => {
   'worklet';
 
-  const { DIST_SMOOTHING_FACTOR, MAX_FRAMES} = generalScanConfig;
+  const { DIST_SMOOTHING_FACTOR, MAX_FRAMES } = generalScanConfig;
 
   globalThis.__scanFrameCount = (globalThis.__scanFrameCount || 0) + 1;
   globalThis.__scanResults = globalThis.__scanResults || [];

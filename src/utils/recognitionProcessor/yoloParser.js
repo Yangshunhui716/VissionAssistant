@@ -71,7 +71,7 @@ export const parseYoloOutput = (
       .join('\n');
 
     console.log(
-      `\n=== YOLO PHÁT HIỆN ${detections.length} VẬT THỂ ===\n${logMessage}`,
+      `\n[yoloParser] === YOLO PHÁT HIỆN ${detections.length} VẬT THỂ ===\n${logMessage}`,
     );
   }
 

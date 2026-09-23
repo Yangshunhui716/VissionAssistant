@@ -16,6 +16,8 @@ export const processSearch = (
 
   if (foundItem) {
     globalThis.__searchFrameCount = 0;
+    globalThis.__lastSearchTarget = null;
+    globalThis.__searchLocked = false;
 
     return {
       status: 'FOUND',
@@ -23,17 +25,19 @@ export const processSearch = (
     };
   }
 
-  if (globalThis.__searchFrameCount >= MAX_FRAMES) {
-    globalThis.__searchFrameCount = 0;
-
+  if (globalThis.__searchFrameCount < MAX_FRAMES) {
     return {
-      status: 'NOT_FOUND',
+      status: 'SEARCHING',
       item: null,
     };
   }
 
+  globalThis.__searchFrameCount = 0;
+  globalThis.__lastSearchTarget = null;
+  globalThis.__searchLocked = false;
+
   return {
-    status: 'SEARCHING',
+    status: 'NOT_FOUND',
     item: null,
   };
 };

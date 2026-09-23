@@ -3,6 +3,7 @@ import { OBJECT365_LABELS_VI } from '../recognitionProcessor/labels';
 export const SYNONYM_MAP = {
   'cái ly': 'cái cốc',
   'cái tách': 'cái cốc',
+  'cái ca': 'cái cốc',
   'cái chén': 'cái bát',
   'cái muỗng': 'cái thìa',
   'cái dĩa': 'cái đĩa',
@@ -63,13 +64,14 @@ export const ALIAS_MAP = {
 }
 
 export const WAKE_GRAMMAR = [
-  'xin', 'chào', 'trợ', 'lý', '[unk]'
+  'xin', 'chào', 'trợ', 'lý', 'chú', 'ý', 'cảnh', 'báo', 
+  '[unk]'
 ];
 
 export const ACTION_WORDS = [
   'quét', 'nhận', 'diện', 'nhìn',
   'xem', 'đọc', 'kiểm', 'tra', 'tắt', 'ngừng',
-  'dừng', 'hủy', 'bật', 'mở', 'chạy', 'có',
+  'dừng', 'hủy', 'bật', 'mở', 'chạy', 
   'giúp', 'khởi', 'động', 'xác', 'định'
 ];
 
@@ -92,7 +94,7 @@ export const FUNCTION_KEYWORDS = {
 
 export const COMMON_WORDS = [
   'cho', 'tôi', 'tui', 'giúp', 'mình',
-  'nhé', 'nha', 'đi', 'ở', 'này', 'gì', 'mắt',
+  'nhé', 'nha', 'đi', 'ở', 'này', 'có', 'gì', 'mắt',
 ]
 
 const generateGrammar = () => {

@@ -211,6 +211,7 @@ const AppContent: React.FC = () => {
   const {
     frameOutput,
     fps,
+    aiFps,
     objectList,
     detectedObj,
     isModelsLoaded,
@@ -301,7 +302,7 @@ const AppContent: React.FC = () => {
         playFeedback(PROMPTS.obstacle.on);
       }
     }
-  }, [activeFunction, isObstacleActive, playFeedback]);
+  }, [activeFunction, isObstacleActive, playFeedback, isScanningCurrency, isScanningGeneral, isScanningText, targetToFind]);
 
   if (!hasCameraPermission || !hasMicPermission) {
     return <StatusScreen message="Vui lòng cấp quyền Camera & Microphone." />;
@@ -327,6 +328,7 @@ const AppContent: React.FC = () => {
 
       <DebugOverlay
         fps={fps}
+        aiFps={aiFps}
         objectList={objectList}
         showFps={config.debug.showFps}
         showObjects={config.debug.showObjects}

@@ -5,6 +5,7 @@ import { Button, Text } from 'react-native-paper';
 /**
  * @param {{
  *   fps: number | null,
+ *   aiFps?: number | null,
  *   objectList: string[],
  *   debugImage: string | null,
  *   showFps: boolean,
@@ -15,6 +16,7 @@ import { Button, Text } from 'react-native-paper';
  */
 const DebugOverlayComponent = ({
   fps,
+  aiFps,
   objectList,
   debugImage,
   showFps,
@@ -50,7 +52,7 @@ const DebugOverlayComponent = ({
       {debug && showFps && fps != null && (
         <View style={styles.fps}>
           <Text variant="labelSmall" style={styles.fpsText}>
-            FPS: {fps}
+            Cam: {fps ?? 0} | AI: {aiFps ?? 0} FPS
           </Text>
         </View>
       )}

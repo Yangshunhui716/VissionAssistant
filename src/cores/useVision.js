@@ -121,6 +121,11 @@ export const useVision = (
     setFps(prev => (prev === newFps ? prev : newFps));
   };
 
+  const [aiFps, setAiFps] = useState(0);
+  const updateAiFps = newAiFps => {
+    setAiFps(prev => (prev === newAiFps ? prev : newAiFps));
+  };
+
   const [debugImage, setDebugImage] = useState(null);
   const updateDebugImage = b64 => {
     setDebugImage(b64);
@@ -302,8 +307,10 @@ export const useVision = (
             ) {
               if (debugConfig.enabled) {
                 scheduleOnRN(updateFps, globalThis.__frameCount);
+                scheduleOnRN(updateAiFps, globalThis.__aiFrameCount || 0);
               }
               globalThis.__frameCount = 0;
+              globalThis.__aiFrameCount = 0;
               globalThis.__lastFpsTime = now;
             }
 
@@ -324,6 +331,9 @@ export const useVision = (
 
             const frameData = new Uint8Array(frame.getPixelBuffer());
 
+            const isProfiling = Boolean(debugConfig.profiling);
+            const tQualityStart = isProfiling ? Date.now() : 0;
+
             const frameQuality = analyzeFrameQuality(
               frameData,
               frame.width,
@@ -331,6 +341,8 @@ export const useVision = (
               frameQualityConfig,
               debugConfig.qualityFrame,
             );
+
+            const dtQuality = isProfiling ? Date.now() - tQualityStart : 0;
 
             if (frameQuality.isBad) {
               if (
@@ -408,6 +420,11 @@ export const useVision = (
               const task = globalThis.__pendingMidasTask;
               globalThis.__pendingMidasTask = null;
 
+              const midasTiming = isProfiling
+                ? { opencvMs: 0, chwMs: 0, totalMs: 0 }
+                : null;
+              const tMidasPrepStart = isProfiling ? Date.now() : 0;
+
               const midasResized = preprocessFrame(
                 frameData,
                 frame.width,
@@ -420,12 +437,21 @@ export const useVision = (
                 frame.isMirrored,
                 null,
                 midasBounds,
+                midasTiming,
               );
+              const dtMidasPrep = isProfiling
+                ? Date.now() - tMidasPrepStart
+                : 0;
 
               if (midasModel.model) {
+                const tMidasInferStart = isProfiling ? Date.now() : 0;
                 const midasOutputs = midasModel.model.runSync([
                   midasResized.buffer,
                 ]);
+                const dtMidasInfer = isProfiling
+                  ? Date.now() - tMidasInferStart
+                  : 0;
+                globalThis.__aiFrameCount = (globalThis.__aiFrameCount || 0) + 1;
 
                 if (!globalThis.__lastDepthMap) {
                   globalThis.__lastDepthMap = new Float32Array(midasOutputs[0]);
@@ -439,6 +465,7 @@ export const useVision = (
                 if (task.type === 'THREAT') {
                   globalThis.__lastMidasTarget = task.targetName;
 
+                  const tRoiStart = isProfiling ? Date.now() : 0;
                   const rawDepth = getDepthFromMidas(
                     task.obj,
                     currentDepthMap,
@@ -447,6 +474,14 @@ export const useVision = (
                     spatialConfig,
                     debugConfig.logging,
                   );
+                  const dtRoi = isProfiling ? Date.now() - tRoiStart : 0;
+
+                  if (isProfiling) {
+                    const dtMidasTotal = dtMidasPrep + dtMidasInfer + dtRoi;
+                    console.log(
+                      `[Profiler #MiDaS] Total: ${dtMidasTotal}ms | Prep: ${dtMidasPrep}ms | Infer: ${dtMidasInfer}ms | Depth ROI: ${dtRoi}ms`,
+                    );
+                  }
 
                   scheduleOnRN(
                     updateAlert,
@@ -502,6 +537,11 @@ export const useVision = (
 
               const reportData = forceCapture ? {} : null;
 
+              const yoloTiming = isProfiling
+                ? { opencvMs: 0, chwMs: 0, totalMs: 0 }
+                : null;
+              const tPrepStart = isProfiling ? Date.now() : 0;
+
               const yoloResized = preprocessFrame(
                 frameData,
                 frame.width,
@@ -514,18 +554,25 @@ export const useVision = (
                 frame.isMirrored,
                 reportData,
                 yoloBounds,
+                yoloTiming,
               );
+              const dtPrep = isProfiling ? Date.now() - tPrepStart : 0;
 
+              const tInferStart = isProfiling ? Date.now() : 0;
               const objectOutputs = yoloObjModel.model.runSync([
                 yoloResized.buffer,
               ]);
+              const dtInfer = isProfiling ? Date.now() - tInferStart : 0;
+              globalThis.__aiFrameCount = (globalThis.__aiFrameCount || 0) + 1;
 
+              const tParseStart = isProfiling ? Date.now() : 0;
               const parsedObject = parseYoloOutput(
                 objectOutputs,
                 YOLO_SIZE,
                 yoloConfig.CONFIDENCE_THRESHOLD,
                 debugConfig.logging,
               );
+              const dtParse = isProfiling ? Date.now() - tParseStart : 0;
 
               if (debugConfig.enabled) {
                 if (parsedObject.length > 0) {
@@ -739,6 +786,7 @@ export const useVision = (
                   scheduleOnRN(onGeneralScanComplete, scanProcess.result);
                 }
               } else if (isObstacleActive) {
+                const tTrackStart = isProfiling ? Date.now() : 0;
                 const trackedObstacles = updateTracks(
                   parsedObject,
                   now,
@@ -842,6 +890,20 @@ export const useVision = (
                     scheduleOnRN(clearAlert);
                   }
                 }
+
+                const dtTrack = isProfiling ? Date.now() - tTrackStart : 0;
+
+                if (isProfiling) {
+                  globalThis.__profilerCount =
+                    (globalThis.__profilerCount || 0) + 1;
+                  if (globalThis.__profilerCount % 4 === 0) {
+                    const dtTotal =
+                      dtQuality + dtPrep + dtInfer + dtParse + dtTrack;
+                    console.log(
+                      `[Profiler #YOLO] Total: ${dtTotal}ms | Quality: ${dtQuality}ms | Prep: ${dtPrep}ms (OpenCV: ${yoloTiming?.opencvMs || 0}ms, CHW: ${yoloTiming?.chwMs || 0}ms) | Infer: ${dtInfer}ms | Parse: ${dtParse}ms | Track&Threat: ${dtTrack}ms`,
+                    );
+                  }
+                }
               }
 
               if (!isObstacleActive && globalThis.__lastThreatTarget !== '') {
@@ -882,6 +944,7 @@ export const useVision = (
   return {
     frameOutput,
     fps,
+    aiFps,
     objectList,
     detectedObj,
     isModelsLoaded:

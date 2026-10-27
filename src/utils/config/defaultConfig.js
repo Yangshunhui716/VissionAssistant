@@ -2,6 +2,7 @@ export const DEFAULT_CONFIG = {
   debug: {
     enabled: false,
     logging: false,
+    profiling: false,
     qualityFrame: false,
     showImage: false,
     showFps: false,

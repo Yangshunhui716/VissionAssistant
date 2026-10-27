@@ -25,10 +25,12 @@ export function preprocessFrame(
   isMirrored = false,
   reportData = null,
   boundsOutput = null,
+  timingOutput = null,
 ) {
   'worklet';
 
   const dst = outputBuffer;
+  const tStart = timingOutput ? Date.now() : 0;
 
   if (!srcPixels || srcWidth <= 0 || srcHeight <= 0) {
     return dst;
@@ -195,6 +197,8 @@ export function preprocessFrame(
       );
     }
 
+    const tOpenCvDone = timingOutput ? Date.now() : 0;
+
     if (format === 'CHW') {
       const channels = MatVector.create();
 
@@ -224,6 +228,12 @@ export function preprocessFrame(
       for (let i = 0; i < length; i++) {
         dst[i] = pixels[i] * inv255;
       }
+    }
+    if (timingOutput) {
+      const tEnd = Date.now();
+      timingOutput.opencvMs = tOpenCvDone - tStart;
+      timingOutput.chwMs = tEnd - tOpenCvDone;
+      timingOutput.totalMs = tEnd - tStart;
     }
   } catch (e) {
     console.log('[framePreprocessor] Error frame preprocessor: ', e);

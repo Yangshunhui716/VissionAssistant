@@ -120,6 +120,16 @@ const DebugPanelComponent = ({ visible, onClose }) => {
             />
 
             <ToggleRow
+              title="Đo đạc độ trễ (Latency Profiler)"
+              value={config.debug.profiling}
+              onChange={value =>
+                updateSection('debug', {
+                  profiling: value,
+                })
+              }
+            />
+
+            <ToggleRow
               title="Hiển thị quality frame"
               value={config.debug.qualityFrame}
               onChange={value =>

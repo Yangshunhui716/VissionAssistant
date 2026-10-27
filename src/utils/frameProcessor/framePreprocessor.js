@@ -45,6 +45,10 @@ export function preprocessFrame(
   let letterboxed = null;
   let resizeSize = null;
   let borderValue = null;
+  let channels = null;
+  let rMat = null;
+  let gMat = null;
+  let bMat = null;
 
   try {
     rgba = Mat.createFromVisionCameraFrameBuffer(
@@ -200,17 +204,26 @@ export function preprocessFrame(
     const tOpenCvDone = timingOutput ? Date.now() : 0;
 
     if (format === 'CHW') {
-      const channels = MatVector.create();
+      channels = MatVector.create();
 
       OpenCV.split(letterboxed, channels);
 
-      const rMat = channels.get(0);
-      const gMat = channels.get(1);
-      const bMat = channels.get(2);
+      rMat = channels.get(0);
+      gMat = channels.get(1);
+      bMat = channels.get(2);
 
       const r = new Uint8Array(rMat.toBuffer('uint8').buffer);
       const g = new Uint8Array(gMat.toBuffer('uint8').buffer);
       const b = new Uint8Array(bMat.toBuffer('uint8').buffer);
+
+      rMat.release();
+      rMat = null;
+      gMat.release();
+      gMat = null;
+      bMat.release();
+      bMat = null;
+      channels.release();
+      channels = null;
 
       const planeSize = dstWidth * dstHeight;
       const inv255 = 1 / 255;
@@ -264,6 +277,26 @@ export function preprocessFrame(
 
     if (resizeSize) {
       resizeSize.release();
+    }
+
+    if (rMat) {
+      rMat.release();
+      rMat = null;
+    }
+
+    if (gMat) {
+      gMat.release();
+      gMat = null;
+    }
+
+    if (bMat) {
+      bMat.release();
+      bMat = null;
+    }
+
+    if (channels) {
+      channels.release();
+      channels = null;
     }
   }
 

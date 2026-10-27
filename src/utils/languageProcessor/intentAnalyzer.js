@@ -311,7 +311,7 @@ const repairObjectCommandTokens = (
     const classifiedItem = classified[index];
 
     if (
-      classifiedItem?.type !== 'OBJECT' ||
+      classifiedItem?.type !== 'OBJECT' &&
       classifiedItem?.type !== 'UNKNOWN'
     ) {
       return item;

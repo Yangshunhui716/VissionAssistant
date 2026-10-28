@@ -327,21 +327,6 @@ const AppContent: React.FC = () => {
         resizeMode="contain"
       />
 
-      <DebugOverlay
-        fps={fps}
-        aiFps={aiFps}
-        latencyMetrics={latencyMetrics}
-        showProfiling={Boolean(config.debug.profiling)}
-        objectList={objectList}
-        showFps={config.debug.showFps}
-        showObjects={config.debug.showObjects}
-        debugImage={config.debug.showImage ? debugImage : null}
-        onCapturePress={() => {
-          captureTrigger.value = true;
-        }}
-        debug={config.debug.enabled}
-      />
-
       <DebugPanel
         visible={showDebugPanel}
         onClose={() => setShowDebugPanel(false)}
@@ -404,6 +389,21 @@ const AppContent: React.FC = () => {
           }
         }}
         onSettingsPress={() => setShowDebugPanel(true)}
+      />
+
+      <DebugOverlay
+        fps={fps}
+        aiFps={aiFps}
+        latencyMetrics={latencyMetrics}
+        showProfiling={Boolean(config.debug.profiling)}
+        objectList={objectList}
+        showFps={config.debug.showFps}
+        showObjects={config.debug.showObjects}
+        debugImage={config.debug.showImage ? debugImage : null}
+        onCapturePress={() => {
+          captureTrigger.value = true;
+        }}
+        debug={config.debug.enabled}
       />
     </View>
   );

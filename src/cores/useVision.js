@@ -289,6 +289,7 @@ export const useVision = (
     onTextScanComplete,
     debugConfig.enabled,
     debugConfig.logging,
+    isProcessingText
   ]);
 
   const frameOutput = useFrameOutput(
@@ -303,6 +304,8 @@ export const useVision = (
             yoloCurrencyModel.state === 'loaded'
           ) {
             const now = Date.now();
+            const isDebug = Boolean(debugConfig.enabled);
+            const isProfiling = isDebug && Boolean(debugConfig.profiling);
 
             globalThis.__frameCount = (globalThis.__frameCount || 0) + 1;
             globalThis.__lastFpsTime = globalThis.__lastFpsTime || Date.now();
@@ -310,7 +313,7 @@ export const useVision = (
               now - globalThis.__lastFpsTime >=
               visionConfig.FPS_UPDATE_INTERVAL_MS
             ) {
-              if (debugConfig.enabled) {
+              if (isDebug) {
                 scheduleOnRN(updateFps, globalThis.__frameCount);
                 scheduleOnRN(updateAiFps, globalThis.__aiFrameCount || 0);
                 if (isProfiling && globalThis.__lastYoloMetrics) {
@@ -332,14 +335,12 @@ export const useVision = (
             }
 
             let forceCapture = false;
-            if (debugConfig.enabled && captureTrigger && captureTrigger.value) {
+            if (isDebug && captureTrigger && captureTrigger.value) {
               forceCapture = true;
               captureTrigger.value = false;
             }
 
             const frameData = new Uint8Array(frame.getPixelBuffer());
-
-            const isProfiling = Boolean(debugConfig.profiling);
             const tQualityStart = isProfiling ? Date.now() : 0;
 
             const frameQuality = analyzeFrameQuality(

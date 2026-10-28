@@ -60,9 +60,11 @@ const DebugOverlayComponent = ({
               Cam: {fps ?? 0} | AI: {aiFps ?? 0} FPS
             </Text>
           )}
-          {showProfiling && latencyMetrics && (
+          {showProfiling && (
             <Text variant="labelSmall" style={styles.profilingText}>
-              Tot: {latencyMetrics.total}ms | Prep: {latencyMetrics.prep}ms (CHW: {latencyMetrics.chw}ms) | YOLO: {latencyMetrics.infer}ms | Trk: {latencyMetrics.track}ms
+              {latencyMetrics
+                ? `Tot: ${latencyMetrics.total}ms\nPrep: ${latencyMetrics.prep}ms\n(CHW: ${latencyMetrics.chw}ms)\nYOLO: ${latencyMetrics.infer}ms\nTrk: ${latencyMetrics.track}ms`
+                : 'Đang đo độ trễ...'}
             </Text>
           )}
         </View>

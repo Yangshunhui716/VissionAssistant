@@ -6,6 +6,8 @@ import { Button, Text } from 'react-native-paper';
  * @param {{
  *   fps: number | null,
  *   aiFps?: number | null,
+ *   latencyMetrics?: { total: number, prep: number, chw: number, infer: number, track: number } | null,
+ *   showProfiling?: boolean,
  *   objectList: string[],
  *   debugImage: string | null,
  *   showFps: boolean,
@@ -17,6 +19,8 @@ import { Button, Text } from 'react-native-paper';
 const DebugOverlayComponent = ({
   fps,
   aiFps,
+  latencyMetrics,
+  showProfiling,
   objectList,
   debugImage,
   showFps,
@@ -49,11 +53,18 @@ const DebugOverlayComponent = ({
         </Button>
       )}
 
-      {debug && showFps && fps != null && (
+      {debug && (showFps || showProfiling) && (
         <View style={styles.fps}>
-          <Text variant="labelSmall" style={styles.fpsText}>
-            Cam: {fps ?? 0} | AI: {aiFps ?? 0} FPS
-          </Text>
+          {showFps && fps != null && (
+            <Text variant="labelSmall" style={styles.fpsText}>
+              Cam: {fps ?? 0} | AI: {aiFps ?? 0} FPS
+            </Text>
+          )}
+          {showProfiling && latencyMetrics && (
+            <Text variant="labelSmall" style={styles.profilingText}>
+              Tot: {latencyMetrics.total}ms | Prep: {latencyMetrics.prep}ms (CHW: {latencyMetrics.chw}ms) | YOLO: {latencyMetrics.infer}ms | Trk: {latencyMetrics.track}ms
+            </Text>
+          )}
         </View>
       )}
 
@@ -120,6 +131,13 @@ const styles = StyleSheet.create({
   fpsText: {
     color: '#00FF00',
     fontWeight: '700',
+  },
+
+  profilingText: {
+    color: '#FBBF24',
+    fontWeight: '600',
+    fontSize: 10,
+    marginTop: 3,
   },
 
   debugList: {

@@ -126,6 +126,11 @@ export const useVision = (
     setAiFps(prev => (prev === newAiFps ? prev : newAiFps));
   };
 
+  const [latencyMetrics, setLatencyMetrics] = useState(null);
+  const updateLatencyMetrics = metrics => {
+    setLatencyMetrics(metrics);
+  };
+
   const [debugImage, setDebugImage] = useState(null);
   const updateDebugImage = b64 => {
     setDebugImage(b64);
@@ -308,6 +313,9 @@ export const useVision = (
               if (debugConfig.enabled) {
                 scheduleOnRN(updateFps, globalThis.__frameCount);
                 scheduleOnRN(updateAiFps, globalThis.__aiFrameCount || 0);
+                if (isProfiling && globalThis.__lastYoloMetrics) {
+                  scheduleOnRN(updateLatencyMetrics, globalThis.__lastYoloMetrics);
+                }
               }
               globalThis.__frameCount = 0;
               globalThis.__aiFrameCount = 0;
@@ -894,11 +902,18 @@ export const useVision = (
                 const dtTrack = isProfiling ? Date.now() - tTrackStart : 0;
 
                 if (isProfiling) {
+                  const dtTotal =
+                    dtQuality + dtPrep + dtInfer + dtParse + dtTrack;
+                  globalThis.__lastYoloMetrics = {
+                    total: dtTotal,
+                    prep: dtPrep,
+                    chw: yoloTiming?.chwMs || 0,
+                    infer: dtInfer,
+                    track: dtTrack,
+                  };
                   globalThis.__profilerCount =
                     (globalThis.__profilerCount || 0) + 1;
                   if (globalThis.__profilerCount % 4 === 0) {
-                    const dtTotal =
-                      dtQuality + dtPrep + dtInfer + dtParse + dtTrack;
                     console.log(
                       `[Profiler #YOLO] Total: ${dtTotal}ms | Quality: ${dtQuality}ms | Prep: ${dtPrep}ms (OpenCV: ${yoloTiming?.opencvMs || 0}ms, CHW: ${yoloTiming?.chwMs || 0}ms) | Infer: ${dtInfer}ms | Parse: ${dtParse}ms | Track&Threat: ${dtTrack}ms`,
                     );
@@ -945,6 +960,7 @@ export const useVision = (
     frameOutput,
     fps,
     aiFps,
+    latencyMetrics,
     objectList,
     detectedObj,
     isModelsLoaded:

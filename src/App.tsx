@@ -212,6 +212,7 @@ const AppContent: React.FC = () => {
     frameOutput,
     fps,
     aiFps,
+    latencyMetrics,
     objectList,
     detectedObj,
     isModelsLoaded,
@@ -329,6 +330,8 @@ const AppContent: React.FC = () => {
       <DebugOverlay
         fps={fps}
         aiFps={aiFps}
+        latencyMetrics={latencyMetrics}
+        showProfiling={Boolean(config.debug.profiling)}
         objectList={objectList}
         showFps={config.debug.showFps}
         showObjects={config.debug.showObjects}

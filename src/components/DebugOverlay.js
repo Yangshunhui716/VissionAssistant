@@ -30,7 +30,7 @@ const DebugOverlayComponent = ({
 }) => {
   return (
     <View style={StyleSheet.absoluteFill} pointerEvents="box-none">
-      {debugImage && (
+      {debug && debugImage && (
         <View style={styles.debugContainer}>
           <Image
             source={{ uri: debugImage }}

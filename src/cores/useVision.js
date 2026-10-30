@@ -83,6 +83,9 @@ export const useVision = (
   isShaking,
   captureTrigger,
   onCaptureReportComplete,
+  benchmarkTrigger,
+  onBenchmarkProgress,
+  onBenchmarkComplete,
 ) => {
   const { config } = useRuntimeConfig();
   const visionConfig = config.vision;
@@ -338,6 +341,15 @@ export const useVision = (
             if (isDebug && captureTrigger && captureTrigger.value) {
               forceCapture = true;
               captureTrigger.value = false;
+            }
+
+            if (isDebug && benchmarkTrigger && benchmarkTrigger.value) {
+              benchmarkTrigger.value = false;
+              globalThis.__benchmarkActive = true;
+              globalThis.__benchmarkSamples = [];
+              if (onBenchmarkProgress) {
+                scheduleOnRN(onBenchmarkProgress, 0);
+              }
             }
 
             const frameData = new Uint8Array(frame.getPixelBuffer());
@@ -919,6 +931,36 @@ export const useVision = (
                       `[Profiler #YOLO] Total: ${dtTotal}ms | Quality: ${dtQuality}ms | Prep: ${dtPrep}ms (OpenCV: ${yoloTiming?.opencvMs || 0}ms, CHW: ${yoloTiming?.chwMs || 0}ms) | Infer: ${dtInfer}ms | Parse: ${dtParse}ms | Track&Threat: ${dtTrack}ms`,
                     );
                   }
+
+                  if (globalThis.__benchmarkActive) {
+                    if (!globalThis.__benchmarkSamples) {
+                      globalThis.__benchmarkSamples = [];
+                    }
+                    globalThis.__benchmarkSamples.push({
+                      frame: globalThis.__benchmarkSamples.length + 1,
+                      timestamp: Date.now(),
+                      quality: dtQuality,
+                      prep: dtPrep,
+                      opencv: yoloTiming?.opencvMs || 0,
+                      chw: yoloTiming?.chwMs || 0,
+                      infer: dtInfer,
+                      parse: dtParse,
+                      track: dtTrack,
+                      total: dtTotal,
+                    });
+                    const currentCount = globalThis.__benchmarkSamples.length;
+                    if (onBenchmarkProgress) {
+                      scheduleOnRN(onBenchmarkProgress, currentCount);
+                    }
+                    if (currentCount >= 100) {
+                      globalThis.__benchmarkActive = false;
+                      const allSamples = globalThis.__benchmarkSamples;
+                      globalThis.__benchmarkSamples = [];
+                      if (onBenchmarkComplete) {
+                        scheduleOnRN(onBenchmarkComplete, JSON.stringify(allSamples));
+                      }
+                    }
+                  }
                 }
               }
 
@@ -954,6 +996,9 @@ export const useVision = (
       currencyConfig,
       obstacleConfig,
       spatialConfig,
+      benchmarkTrigger,
+      onBenchmarkProgress,
+      onBenchmarkComplete,
     ],
   );
 

@@ -13,6 +13,9 @@ import { Button, Text } from 'react-native-paper';
  *   showFps: boolean,
  *   showObjects: boolean,
  *   onCapturePress: () => void,
+ *   onBenchmarkPress?: () => void,
+ *   benchmarkProgress?: number | null,
+ *   benchmarkSaved?: boolean,
  *   debug: boolean
  * }} props
  */
@@ -26,6 +29,9 @@ const DebugOverlayComponent = ({
   showFps,
   showObjects,
   onCapturePress,
+  onBenchmarkPress,
+  benchmarkProgress = null,
+  benchmarkSaved = false,
   debug,
 }) => {
   return (
@@ -50,6 +56,24 @@ const DebugOverlayComponent = ({
           onPress={onCapturePress}
         >
           LẤY ẢNH
+        </Button>
+      )}
+
+      {debug && showProfiling && (
+        <Button
+          mode="contained"
+          buttonColor={benchmarkProgress !== null ? "#F59E0B" : "#10B981"}
+          icon="timer-outline"
+          style={styles.benchmarkBtn}
+          labelStyle={styles.benchmarkBtnText}
+          disabled={benchmarkProgress !== null}
+          onPress={onBenchmarkPress}
+        >
+          {benchmarkProgress !== null
+            ? `ĐANG ĐO (${benchmarkProgress}/100)`
+            : benchmarkSaved
+            ? "ĐÃ LƯU (BẤM ĐO LẠI)"
+            : "ĐO 100 FRAME"}
         </Button>
       )}
 
@@ -107,10 +131,22 @@ const styles = StyleSheet.create({
 
   captureBtn: {
     position: 'absolute',
-    top: 110,
+    top: 105,
     right: 10,
     zIndex: 9999,
     borderRadius: 8,
+  },
+  benchmarkBtn: {
+    position: 'absolute',
+    top: 150,
+    right: 10,
+    zIndex: 9999,
+    borderRadius: 8,
+  },
+  benchmarkBtnText: {
+    color: 'white',
+    fontWeight: 'bold',
+    fontSize: 12,
   },
 
   captureBtnText: {
@@ -144,7 +180,7 @@ const styles = StyleSheet.create({
 
   debugList: {
     position: 'absolute',
-    top: 160,
+    top: 195,
     right: 10,
     padding: 7,
     borderRadius: 7,

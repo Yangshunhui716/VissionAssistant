@@ -46,6 +46,9 @@ const AppContent: React.FC = () => {
 
   const isShaking = useSharedValue<boolean>(false);
   const captureTrigger = useSharedValue<boolean>(false);
+  const benchmarkTrigger = useSharedValue<boolean>(false);
+  const [benchmarkProgress, setBenchmarkProgress] = useState<number | null>(null);
+  const [benchmarkSaved, setBenchmarkSaved] = useState<boolean>(false);
 
   const [appState, setAppState] = useState('SLEEP');
   const [isObstacleActive, setIsObstacleActive] = useState(true);
@@ -208,6 +211,51 @@ const AppContent: React.FC = () => {
     [playFeedback],
   );
 
+
+  const handleBenchmarkProgress = useCallback((count: number) => {
+    setBenchmarkProgress(count);
+  }, []);
+
+  const handleBenchmarkComplete = useCallback(async (samplesJson: string) => {
+    setBenchmarkProgress(null);
+    try {
+      const samples = JSON.parse(samplesJson);
+      if (!Array.isArray(samples) || samples.length === 0) return;
+
+      const headers =
+        'Frame,Timestamp,Quality_ms,Prep_ms,OpenCV_ms,CHW_ms,YOLO_Infer_ms,Parse_ms,Track_ms,Total_ms';
+      const rows = samples.map(
+        (s: any) =>
+          `${s.frame},${s.timestamp},${s.quality},${s.prep},${s.opencv},${s.chw},${s.infer},${s.parse},${s.track},${s.total}`,
+      );
+      const csvContent = [headers, ...rows].join('\n');
+      const ts = Date.now();
+      const fileName = `benchmark_100frames_${ts}.csv`;
+
+      const extDir =
+        Platform.OS === 'android'
+          ? RNFS.ExternalDirectoryPath
+          : RNFS.DocumentDirectoryPath;
+      await RNFS.writeFile(`${extDir}/${fileName}`, csvContent, 'utf8');
+
+      if (RNFS.DownloadDirectoryPath) {
+        try {
+          await RNFS.writeFile(
+            `${RNFS.DownloadDirectoryPath}/${fileName}`,
+            csvContent,
+            'utf8',
+          );
+        } catch {
+        }
+      }
+
+      console.log(`[Benchmark] Da luu 100 frames vao:\n${extDir}/${fileName}`);
+      setBenchmarkSaved(true);
+    } catch (e) {
+      console.error('[Benchmark] Loi luu file CSV:', e);
+    }
+  }, []);
+
   const {
     frameOutput,
     fps,
@@ -233,6 +281,9 @@ const AppContent: React.FC = () => {
     isShaking,
     captureTrigger,
     handleCaptureReportComplete,
+    benchmarkTrigger,
+    handleBenchmarkProgress,
+    handleBenchmarkComplete,
   );
 
   const activeFunction = targetToFind
@@ -403,6 +454,12 @@ const AppContent: React.FC = () => {
         onCapturePress={() => {
           captureTrigger.value = true;
         }}
+        onBenchmarkPress={() => {
+          setBenchmarkSaved(false);
+          benchmarkTrigger.value = true;
+        }}
+        benchmarkProgress={benchmarkProgress}
+        benchmarkSaved={benchmarkSaved}
         debug={config.debug.enabled}
       />
     </View>

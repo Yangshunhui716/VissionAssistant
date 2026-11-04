@@ -48,6 +48,7 @@ const AppContent: React.FC = () => {
   const captureTrigger = useSharedValue<boolean>(false);
   const benchmarkTrigger = useSharedValue<boolean>(false);
   const [benchmarkProgress, setBenchmarkProgress] = useState<number | null>(null);
+  const [benchmarkCountdown, setBenchmarkCountdown] = useState<number | null>(null);
   const [benchmarkSaved, setBenchmarkSaved] = useState<boolean>(false);
 
   const [appState, setAppState] = useState('SLEEP');
@@ -212,6 +213,39 @@ const AppContent: React.FC = () => {
   );
 
 
+  useEffect(() => {
+    if (benchmarkCountdown === null) return;
+    if (benchmarkCountdown > 0) {
+      const timer = setTimeout(() => {
+        setBenchmarkCountdown(prev => (prev !== null && prev > 1 ? prev - 1 : 0));
+      }, 1000);
+      return () => clearTimeout(timer);
+    }
+    if (benchmarkCountdown === 0) {
+      setBenchmarkCountdown(null);
+      benchmarkTrigger.value = true;
+      playFeedback(PROMPTS.benchmark.start);
+    }
+  }, [benchmarkCountdown, benchmarkTrigger, playFeedback]);
+
+  const handleStartBenchmark = useCallback(() => {
+    setBenchmarkSaved(false);
+    setBenchmarkCountdown(null);
+    benchmarkTrigger.value = true;
+    playFeedback(PROMPTS.benchmark.start);
+  }, [benchmarkTrigger, playFeedback]);
+
+  const handleStartBenchmarkCountdown = useCallback(() => {
+    setBenchmarkSaved(false);
+    setBenchmarkCountdown(10);
+    playFeedback(PROMPTS.benchmark.countdown);
+  }, [playFeedback]);
+
+  const handleCancelCountdown = useCallback(() => {
+    setBenchmarkCountdown(null);
+    playFeedback(PROMPTS.benchmark.cancel);
+  }, [playFeedback]);
+
   const handleBenchmarkProgress = useCallback((count: number) => {
     setBenchmarkProgress(count);
   }, []);
@@ -223,10 +257,12 @@ const AppContent: React.FC = () => {
       if (!Array.isArray(samples) || samples.length === 0) return;
 
       const headers =
-        'Frame,Timestamp,Quality_ms,Prep_ms,OpenCV_ms,CHW_ms,YOLO_Infer_ms,Parse_ms,Track_ms,Total_ms';
+        'Frame,Timestamp,Quality_ms,Prep_ms,OpenCV_ms,CHW_ms,YOLO_Infer_ms,Parse_ms,Track_ms,Total_ms,Num_Objects,Track_ID,Class_Name,Score,Box_X,Box_Y,Box_W,Box_H,Box_X2,Box_Y2,Motion';
       const rows = samples.map(
         (s: any) =>
-          `${s.frame},${s.timestamp},${s.quality},${s.prep},${s.opencv},${s.chw},${s.infer},${s.parse},${s.track},${s.total}`,
+          `${s.frame},${s.timestamp},${s.quality},${s.prep},${s.opencv},${s.chw},${s.infer},${s.parse},${s.track},${s.total},` +
+          `${s.numObjects ?? 0},${s.trackId ?? -1},"${s.label ?? 'None'}",${s.score ?? 0},` +
+          `${s.boxX ?? 0},${s.boxY ?? 0},${s.boxW ?? 0},${s.boxH ?? 0},${s.boxX2 ?? 0},${s.boxY2 ?? 0},"${s.motion ?? 'None'}"`,
       );
       const csvContent = [headers, ...rows].join('\n');
       const ts = Date.now();
@@ -251,10 +287,11 @@ const AppContent: React.FC = () => {
 
       console.log(`[Benchmark] Da luu 100 frames vao:\n${extDir}/${fileName}`);
       setBenchmarkSaved(true);
+      playFeedback(PROMPTS.benchmark.complete);
     } catch (e) {
       console.error('[Benchmark] Loi luu file CSV:', e);
     }
-  }, []);
+  }, [playFeedback]);
 
   const {
     frameOutput,
@@ -454,10 +491,10 @@ const AppContent: React.FC = () => {
         onCapturePress={() => {
           captureTrigger.value = true;
         }}
-        onBenchmarkPress={() => {
-          setBenchmarkSaved(false);
-          benchmarkTrigger.value = true;
-        }}
+        onBenchmarkPress={handleStartBenchmark}
+        onCountdownBenchmarkPress={handleStartBenchmarkCountdown}
+        onCancelCountdown={handleCancelCountdown}
+        benchmarkCountdown={benchmarkCountdown}
         benchmarkProgress={benchmarkProgress}
         benchmarkSaved={benchmarkSaved}
         debug={config.debug.enabled}

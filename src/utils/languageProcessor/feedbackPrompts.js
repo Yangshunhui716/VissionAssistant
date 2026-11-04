@@ -137,4 +137,27 @@ export const PROMPTS = {
       priority: 2,
     }),
   },
+
+  benchmark: {
+    start: {
+      ui: 'Bắt đầu đo 100 khung hình',
+      tts: 'Bắt đầu đo',
+      priority: 1,
+    },
+    countdown: {
+      ui: 'Bắt đầu sau 10 giây',
+      tts: 'Chuẩn bị, mười giây bắt đầu',
+      priority: 1,
+    },
+    cancel: {
+      ui: 'Đã hủy hẹn giờ',
+      tts: 'Đã hủy hẹn giờ',
+      priority: 1,
+    },
+    complete: {
+      ui: 'Đã hoàn thành đo 100 khung hình',
+      tts: 'Đã hoàn thành đo',
+      priority: 1,
+    },
+  },
 };

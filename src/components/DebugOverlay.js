@@ -14,6 +14,9 @@ import { Button, Text } from 'react-native-paper';
  *   showObjects: boolean,
  *   onCapturePress: () => void,
  *   onBenchmarkPress?: () => void,
+ *   onCountdownBenchmarkPress?: () => void,
+ *   onCancelCountdown?: () => void,
+ *   benchmarkCountdown?: number | null,
  *   benchmarkProgress?: number | null,
  *   benchmarkSaved?: boolean,
  *   debug: boolean
@@ -30,6 +33,9 @@ const DebugOverlayComponent = ({
   showObjects,
   onCapturePress,
   onBenchmarkPress,
+  onCountdownBenchmarkPress,
+  onCancelCountdown,
+  benchmarkCountdown = null,
   benchmarkProgress = null,
   benchmarkSaved = false,
   debug,
@@ -66,15 +72,43 @@ const DebugOverlayComponent = ({
           icon="timer-outline"
           style={styles.benchmarkBtn}
           labelStyle={styles.benchmarkBtnText}
-          disabled={benchmarkProgress !== null}
+          disabled={benchmarkProgress !== null || benchmarkCountdown !== null}
           onPress={onBenchmarkPress}
         >
           {benchmarkProgress !== null
             ? `ĐANG ĐO (${benchmarkProgress}/100)`
             : benchmarkSaved
             ? "ĐÃ LƯU (BẤM ĐO LẠI)"
-            : "ĐO 100 FRAME"}
+            : "ĐO NGAY (100F)"}
         </Button>
+      )}
+
+      {debug && showProfiling && (
+        <Button
+          mode="contained"
+          buttonColor={benchmarkCountdown !== null ? "#DC2626" : "#7C3AED"}
+          icon={benchmarkCountdown !== null ? "close-circle" : "timer-sand"}
+          style={styles.benchmarkCountdownBtn}
+          labelStyle={styles.benchmarkBtnText}
+          disabled={benchmarkProgress !== null}
+          onPress={
+            benchmarkCountdown !== null
+              ? onCancelCountdown
+              : onCountdownBenchmarkPress
+          }
+        >
+          {benchmarkCountdown !== null
+            ? `HỦY (${benchmarkCountdown}s)`
+            : "HẸN GIỜ 10S"}
+        </Button>
+      )}
+
+      {benchmarkCountdown !== null && (
+        <View style={styles.countdownCenterOverlay} pointerEvents="none">
+          <Text style={styles.countdownTitle}>CHUẨN BỊ BẮT ĐẦU</Text>
+          <Text style={styles.countdownNumber}>{benchmarkCountdown}</Text>
+          <Text style={styles.countdownSubtitle}>Vào vị trí thực hiện kịch bản</Text>
+        </View>
       )}
 
       {debug && (showFps || showProfiling) && (
@@ -143,6 +177,44 @@ const styles = StyleSheet.create({
     zIndex: 9999,
     borderRadius: 8,
   },
+  benchmarkCountdownBtn: {
+    position: 'absolute',
+    top: 195,
+    right: 10,
+    zIndex: 9999,
+    borderRadius: 8,
+  },
+  countdownCenterOverlay: {
+    position: 'absolute',
+    top: '32%',
+    alignSelf: 'center',
+    backgroundColor: 'rgba(0, 0, 0, 0.82)',
+    paddingVertical: 24,
+    paddingHorizontal: 36,
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 2,
+    borderColor: '#7C3AED',
+    zIndex: 10000,
+    elevation: 10000,
+  },
+  countdownTitle: {
+    color: '#F59E0B',
+    fontWeight: 'bold',
+    fontSize: 16,
+    letterSpacing: 1.5,
+  },
+  countdownNumber: {
+    color: '#FFFFFF',
+    fontWeight: '900',
+    fontSize: 72,
+    marginVertical: 6,
+  },
+  countdownSubtitle: {
+    color: '#E5E7EB',
+    fontSize: 13,
+  },
   benchmarkBtnText: {
     color: 'white',
     fontWeight: 'bold',
@@ -180,7 +252,7 @@ const styles = StyleSheet.create({
 
   debugList: {
     position: 'absolute',
-    top: 195,
+    top: 240,
     right: 10,
     padding: 7,
     borderRadius: 7,

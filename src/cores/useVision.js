@@ -936,6 +936,30 @@ export const useVision = (
                     if (!globalThis.__benchmarkSamples) {
                       globalThis.__benchmarkSamples = [];
                     }
+
+                    const numObjects = trackedObstacles ? trackedObstacles.length : 0;
+                    const trackId = mostDangerousTarget?.id ?? -1;
+                    const targetLabel = targetName || 'None';
+                    const score = mostDangerousTarget?.score
+                      ? Math.round(mostDangerousTarget.score * 1000) / 1000
+                      : 0;
+                    const boxX = mostDangerousTarget
+                      ? Math.round(mostDangerousTarget.x)
+                      : 0;
+                    const boxY = mostDangerousTarget
+                      ? Math.round(mostDangerousTarget.y)
+                      : 0;
+                    const boxW = mostDangerousTarget
+                      ? Math.round(mostDangerousTarget.width)
+                      : 0;
+                    const boxH = mostDangerousTarget
+                      ? Math.round(mostDangerousTarget.height)
+                      : 0;
+                    const boxX2 = boxX + boxW;
+                    const boxY2 = boxY + boxH;
+                    const motion =
+                      mostDangerousTarget?.motion || motionState || 'None';
+
                     globalThis.__benchmarkSamples.push({
                       frame: globalThis.__benchmarkSamples.length + 1,
                       timestamp: Date.now(),
@@ -947,6 +971,17 @@ export const useVision = (
                       parse: dtParse,
                       track: dtTrack,
                       total: dtTotal,
+                      numObjects: numObjects,
+                      trackId: trackId,
+                      label: targetLabel,
+                      score: score,
+                      boxX: boxX,
+                      boxY: boxY,
+                      boxW: boxW,
+                      boxH: boxH,
+                      boxX2: boxX2,
+                      boxY2: boxY2,
+                      motion: motion,
                     });
                     const currentCount = globalThis.__benchmarkSamples.length;
                     if (onBenchmarkProgress) {

@@ -46,9 +46,9 @@ export function preprocessFrame(
   let resizeSize = null;
   let borderValue = null;
   let channels = null;
-  let rMat = null;
-  let gMat = null;
-  let bMat = null;
+  let chw8u = null;
+  let chw32f = null;
+  let hwc32f = null;
 
   try {
     rgba = Mat.createFromVisionCameraFrameBuffer(
@@ -204,43 +204,39 @@ export function preprocessFrame(
     const tOpenCvDone = timingOutput ? Date.now() : 0;
 
     if (format === 'CHW') {
+      // C++ Native CHW Pipeline: split into 3 planes (R, G, B) and vertically concatenate into a single planar matrix (3H x W)
       channels = MatVector.create();
-
       OpenCV.split(letterboxed, channels);
 
-      rMat = channels.get(0);
-      gMat = channels.get(1);
-      bMat = channels.get(2);
+      chw8u = Mat.create(0, 0, DataTypes.CV_8UC1);
+      OpenCV.vconcat(channels, chw8u);
 
-      const r = new Uint8Array(rMat.toBuffer('uint8').buffer);
-      const g = new Uint8Array(gMat.toBuffer('uint8').buffer);
-      const b = new Uint8Array(bMat.toBuffer('uint8').buffer);
-
-      rMat.release();
-      rMat = null;
-      gMat.release();
-      gMat = null;
-      bMat.release();
-      bMat = null;
       channels.release();
       channels = null;
 
-      const planeSize = dstWidth * dstHeight;
-      const inv255 = 1 / 255;
+      // Native C++ float32 conversion & 1/255.0 normalization with ARM NEON SIMD
+      chw32f = Mat.create(0, 0, DataTypes.CV_32FC1);
+      OpenCV.convertTo(chw8u, chw32f, DataTypes.CV_32FC1, 1 / 255.0, 0);
 
-      for (let i = 0; i < planeSize; i++) {
-        dst[i] = r[i] * inv255;
-        dst[planeSize + i] = g[i] * inv255;
-        dst[planeSize * 2 + i] = b[i] * inv255;
-      }
+      chw8u.release();
+      chw8u = null;
+
+      // Single JSI typed array access and low-level C++ memcpy into destination buffer
+      const floatBuf = chw32f.toBuffer('float32').buffer;
+      dst.set(floatBuf);
+
+      chw32f.release();
+      chw32f = null;
     } else {
-      const pixels = new Uint8Array(letterboxed.toBuffer('uint8').buffer);
-      const length = dstWidth * dstHeight * 3;
-      const inv255 = 1 / 255;
+      // C++ Native HWC Pipeline: direct convertTo float32 with ARM NEON SIMD
+      hwc32f = Mat.create(0, 0, DataTypes.CV_32FC3);
+      OpenCV.convertTo(letterboxed, hwc32f, DataTypes.CV_32FC3, 1 / 255.0, 0);
 
-      for (let i = 0; i < length; i++) {
-        dst[i] = pixels[i] * inv255;
-      }
+      const floatBuf = hwc32f.toBuffer('float32').buffer;
+      dst.set(floatBuf);
+
+      hwc32f.release();
+      hwc32f = null;
     }
     if (timingOutput) {
       const tEnd = Date.now();
@@ -279,24 +275,24 @@ export function preprocessFrame(
       resizeSize.release();
     }
 
-    if (rMat) {
-      rMat.release();
-      rMat = null;
-    }
-
-    if (gMat) {
-      gMat.release();
-      gMat = null;
-    }
-
-    if (bMat) {
-      bMat.release();
-      bMat = null;
-    }
-
     if (channels) {
       channels.release();
       channels = null;
+    }
+
+    if (chw8u) {
+      chw8u.release();
+      chw8u = null;
+    }
+
+    if (chw32f) {
+      chw32f.release();
+      chw32f = null;
+    }
+
+    if (hwc32f) {
+      hwc32f.release();
+      hwc32f = null;
     }
   }
 

@@ -13,6 +13,31 @@ import {
 
 import { createBmpBase64 } from '../config/defaultConfig';
 
+/**
+ * Preprocesses a raw camera frame from VisionCamera into a normalized tensor buffer (CHW or HWC).
+ * 
+ * Architecture (Native C++ & SIMD Pipeline - Task 17 & 18):
+ * - RGBA to RGB conversion, orientation normalization, aspect-ratio preserving resize & letterbox padding via OpenCV C++.
+ * - CHW conversion: cv::split -> cv::vconcat -> cv::convertTo (CV_32FC1, alpha=1/255.0) accelerated with ARM NEON SIMD.
+ * - HWC conversion: cv::convertTo (CV_32FC3, alpha=1/255.0) accelerated with ARM NEON SIMD.
+ * - Memory Lifecycle: Explicit C++ matrix deallocation (.release()) resets ExternalMemoryPressure in Hermes immediately,
+ *   preventing GC spikes and eliminating memory leaks.
+ * - Buffer Transfer: Fast block memory copy via TypedArray.prototype.set() into persistent tensor buffer.
+ *
+ * @param {Uint8Array} srcPixels - Raw camera buffer from VisionCamera
+ * @param {number} srcWidth - Frame width
+ * @param {number} srcHeight - Frame height
+ * @param {number} dstWidth - Target tensor width (e.g. 320 for YOLO, 256 for MiDaS)
+ * @param {number} dstHeight - Target tensor height (e.g. 320 for YOLO, 256 for MiDaS)
+ * @param {Float32Array|null} outputBuffer - Pre-allocated persistent Float32Array tensor buffer
+ * @param {'CHW'|'HWC'} [format='CHW'] - Planar CHW (YOLO) or interleaved HWC (MiDaS) layout
+ * @param {string} [orientation='portrait'] - Device camera orientation
+ * @param {boolean} [isMirrored=false] - Whether camera is front-facing mirrored
+ * @param {object|null} [reportData=null] - Profiling/dump report collector
+ * @param {object|null} [boundsOutput=null] - Letterbox bounds metadata collector
+ * @param {object|null} [timingOutput=null] - Micro-benchmark latency breakdown collector
+ * @returns {Float32Array} - Normalized float32 tensor buffer ready for TFLite inference
+ */
 export function preprocessFrame(
   srcPixels,
   srcWidth,
@@ -49,6 +74,7 @@ export function preprocessFrame(
   let chw8u = null;
   let chw32f = null;
   let hwc32f = null;
+  let resultBuffer = null;
 
   try {
     rgba = Mat.createFromVisionCameraFrameBuffer(
@@ -223,7 +249,11 @@ export function preprocessFrame(
 
       // Single JSI typed array access and low-level C++ memcpy into destination buffer
       const floatBuf = chw32f.toBuffer('float32').buffer;
-      dst.set(floatBuf);
+      if (dst) {
+        dst.set(floatBuf);
+      } else {
+        resultBuffer = floatBuf;
+      }
 
       chw32f.release();
       chw32f = null;
@@ -233,7 +263,11 @@ export function preprocessFrame(
       OpenCV.convertTo(letterboxed, hwc32f, DataTypes.CV_32FC3, 1 / 255.0, 0);
 
       const floatBuf = hwc32f.toBuffer('float32').buffer;
-      dst.set(floatBuf);
+      if (dst) {
+        dst.set(floatBuf);
+      } else {
+        resultBuffer = floatBuf;
+      }
 
       hwc32f.release();
       hwc32f = null;
@@ -296,5 +330,5 @@ export function preprocessFrame(
     }
   }
 
-  return dst;
+  return dst || resultBuffer;
 }

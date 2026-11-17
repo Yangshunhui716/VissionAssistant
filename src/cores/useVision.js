@@ -35,6 +35,7 @@ import { gridWeighting } from '../utils/obstacleAnalyzer/gridWeighting';
 import { updateTracks } from '../utils/obstacleAnalyzer/objectTracker';
 import { analyzeThreat } from '../utils/obstacleAnalyzer/threatAnalyzer';
 import { evaluateAdaptiveMidasTrigger } from '../utils/obstacleAnalyzer/adaptiveScheduler';
+import { recordBenchmarkTelemetry } from '../utils/benchmark/benchmarkRecorder';
 import { analyzeFrameQuality } from '../utils/frameProcessor/frameQuality';
 import { FIXED_CONFIG, createBmpBase64 } from '../utils/config/defaultConfig';
 
@@ -956,70 +957,25 @@ export const useVision = (
                     );
                   }
 
-                  if (globalThis.__benchmarkActive) {
-                    if (!globalThis.__benchmarkSamples) {
-                      globalThis.__benchmarkSamples = [];
-                    }
-
-                    const numObjects = trackedObstacles ? trackedObstacles.length : 0;
-                    const trackId = mostDangerousTarget?.id ?? -1;
-                    const targetLabel = targetName || 'None';
-                    const score = mostDangerousTarget?.score
-                      ? Math.round(mostDangerousTarget.score * 1000) / 1000
-                      : 0;
-                    const boxX = mostDangerousTarget
-                      ? Math.round(mostDangerousTarget.x)
-                      : 0;
-                    const boxY = mostDangerousTarget
-                      ? Math.round(mostDangerousTarget.y)
-                      : 0;
-                    const boxW = mostDangerousTarget
-                      ? Math.round(mostDangerousTarget.width)
-                      : 0;
-                    const boxH = mostDangerousTarget
-                      ? Math.round(mostDangerousTarget.height)
-                      : 0;
-                    const boxX2 = boxX + boxW;
-                    const boxY2 = boxY + boxH;
-                    const motion =
-                      mostDangerousTarget?.motion || motionState || 'None';
-
-                    globalThis.__benchmarkSamples.push({
-                      frame: globalThis.__benchmarkSamples.length + 1,
-                      timestamp: Date.now(),
-                      quality: dtQuality,
-                      prep: dtPrep,
-                      opencv: yoloTiming?.opencvMs || 0,
-                      chw: yoloTiming?.chwMs || 0,
-                      infer: dtInfer,
-                      parse: dtParse,
-                      track: dtTrack,
-                      total: dtTotal,
-                      numObjects: numObjects,
-                      trackId: trackId,
-                      label: targetLabel,
-                      score: score,
-                      boxX: boxX,
-                      boxY: boxY,
-                      boxW: boxW,
-                      boxH: boxH,
-                      boxX2: boxX2,
-                      boxY2: boxY2,
-                      motion: motion,
-                    });
-                    const currentCount = globalThis.__benchmarkSamples.length;
-                    if (onBenchmarkProgress) {
-                      scheduleOnRN(onBenchmarkProgress, currentCount);
-                    }
-                    if (currentCount >= 100) {
-                      globalThis.__benchmarkActive = false;
-                      const allSamples = globalThis.__benchmarkSamples;
-                      globalThis.__benchmarkSamples = [];
-                      if (onBenchmarkComplete) {
-                        scheduleOnRN(onBenchmarkComplete, JSON.stringify(allSamples));
-                      }
-                    }
-                  }
+                  recordBenchmarkTelemetry(
+                    trackedObstacles,
+                    mostDangerousTarget,
+                    targetName,
+                    motionState,
+                    {
+                      dtQuality,
+                      dtPrep,
+                      opencvMs: yoloTiming?.opencvMs || 0,
+                      chwMs: yoloTiming?.chwMs || 0,
+                      dtInfer,
+                      dtParse,
+                      dtTrack,
+                      dtTotal,
+                    },
+                    scheduleOnRN,
+                    onBenchmarkProgress,
+                    onBenchmarkComplete,
+                  );
                 }
               }
 

@@ -28,6 +28,7 @@ import {
   startMotionGuard,
   stopMotionGuard,
 } from './utils/sensorProcessor/motionDetector';
+import { buildBenchmarkCsv } from './utils/benchmark/benchmarkRecorder';
 import { PROMPTS } from './utils/languageProcessor/feedbackPrompts';
 
 const AppContent: React.FC = () => {
@@ -256,15 +257,7 @@ const AppContent: React.FC = () => {
       const samples = JSON.parse(samplesJson);
       if (!Array.isArray(samples) || samples.length === 0) return;
 
-      const headers =
-        'Frame,Timestamp,Quality_ms,Prep_ms,OpenCV_ms,CHW_ms,YOLO_Infer_ms,Parse_ms,Track_ms,Total_ms,Num_Objects,Track_ID,Class_Name,Score,Box_X,Box_Y,Box_W,Box_H,Box_X2,Box_Y2,Motion';
-      const rows = samples.map(
-        (s: any) =>
-          `${s.frame},${s.timestamp},${s.quality},${s.prep},${s.opencv},${s.chw},${s.infer},${s.parse},${s.track},${s.total},` +
-          `${s.numObjects ?? 0},${s.trackId ?? -1},"${s.label ?? 'None'}",${s.score ?? 0},` +
-          `${s.boxX ?? 0},${s.boxY ?? 0},${s.boxW ?? 0},${s.boxH ?? 0},${s.boxX2 ?? 0},${s.boxY2 ?? 0},"${s.motion ?? 'None'}"`,
-      );
-      const csvContent = [headers, ...rows].join('\n');
+      const csvContent = buildBenchmarkCsv(samples);
       const ts = Date.now();
       const fileName = `benchmark_100frames_${ts}.csv`;
 

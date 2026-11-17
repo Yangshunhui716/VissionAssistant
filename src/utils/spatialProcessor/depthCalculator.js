@@ -103,3 +103,41 @@ export const translateDepthToText = (rawVal, spatialConfig) => {
 
   return 'Trên 5 mét';
 };
+
+/**
+ * Nội suy độ sâu tương đối (rawDepth) khi MiDaS ngủ đông dựa trên mô hình phối cảnh quang học
+ * Nguyên lý: Trong camera phối cảnh, độ nghịch đảo chiều sâu (Disparity / Raw Depth) tỉ lệ thuận với căn bậc hai diện tích BBox:
+ * rawDepth_t ≈ rawDepth_anchor * sqrt(currentArea / anchorArea)
+ *
+ * @param {number} anchorDepth Giá trị rawDepth mốc đo được từ MiDaS gần nhất
+ * @param {number} anchorArea Diện tích BBox tại thời điểm đo mốc
+ * @param {number} currentArea Diện tích BBox hiện tại của đối tượng
+ * @returns {number} Giá trị rawDepth đã được nội suy mượt mà
+ */
+export const interpolateDepthFromBBox = (
+  anchorDepth,
+  anchorArea,
+  currentArea,
+) => {
+  'worklet';
+
+  if (
+    !anchorDepth ||
+    anchorDepth <= 0 ||
+    !anchorArea ||
+    anchorArea <= 0 ||
+    !currentArea ||
+    currentArea <= 0
+  ) {
+    return anchorDepth || 0;
+  }
+
+  // Tỷ lệ biến thiên diện tích BBox
+  const areaRatio = currentArea / anchorArea;
+
+  // Giới hạn biên an toàn [0.25, 4.0] tương ứng scale cự ly [0.5, 2.0] để chống nhiễu detection
+  const clampedRatio = Math.max(0.25, Math.min(4.0, areaRatio));
+  const scale = Math.sqrt(clampedRatio);
+
+  return anchorDepth * scale;
+};

@@ -29,6 +29,7 @@ import {
 import {
   getDepthFromMidas,
   translateDepthToText,
+  interpolateDepthFromBBox,
 } from '../utils/spatialProcessor/depthCalculator';
 import { analyzeSpatialObject } from '../utils/spatialProcessor/spatialAnalyzer';
 import { gridWeighting } from '../utils/obstacleAnalyzer/gridWeighting';
@@ -338,6 +339,8 @@ export const useVision = (
               globalThis.__lastThreatArea = 0;
               globalThis.__lastThreatCx = 0;
               globalThis.__lastThreatCy = 0;
+              globalThis.__lastAnchorDepth = 0;
+              globalThis.__lastAnchorArea = 0;
               scheduleOnRN(clearAlert);
               return;
             }
@@ -385,6 +388,8 @@ export const useVision = (
               globalThis.__lastThreatArea = 0;
               globalThis.__lastThreatCx = 0;
               globalThis.__lastThreatCy = 0;
+              globalThis.__lastAnchorDepth = 0;
+              globalThis.__lastAnchorArea = 0;
               return;
             }
 
@@ -504,6 +509,11 @@ export const useVision = (
                     debugConfig.logging,
                   );
                   const dtRoi = isProfiling ? Date.now() - tRoiStart : 0;
+
+                  if (rawDepth > 0) {
+                    globalThis.__lastAnchorDepth = rawDepth;
+                    globalThis.__lastAnchorArea = task.currentArea || 0;
+                  }
 
                   if (isProfiling) {
                     const dtMidasTotal = dtMidasPrep + dtMidasInfer + dtRoi;
@@ -891,12 +901,24 @@ export const useVision = (
                       },
                     };
                   } else {
-                    // MiDaS ngủ đông (Sleeping) - Tái sử dụng bản đồ độ sâu đã có hoặc thông báo không gián đoạn
+                    // MiDaS ngủ đông (Sleeping) - Nội suy cự ly quang học từ BBox expansion hoặc tái sử dụng depth map
+                    let rawDepth = null;
                     if (
+                      globalThis.__lastAnchorDepth > 0 &&
+                      globalThis.__lastAnchorArea > 0
+                    ) {
+                      // Nội suy cự ly quang học từ biến thiên diện tích BBox (O(1) CPU, 0% GPU)
+                      rawDepth = interpolateDepthFromBBox(
+                        globalThis.__lastAnchorDepth,
+                        globalThis.__lastAnchorArea,
+                        currentArea,
+                      );
+                    } else if (
                       timeSinceLastMidas > visionConfig.MIDAS_TARGET_DELAY_MS &&
                       globalThis.__lastDepthMap
                     ) {
-                      const rawDepth = getDepthFromMidas(
+                      // Fallback: Tra cứu trên depth map nếu chưa có anchor mốc
+                      rawDepth = getDepthFromMidas(
                         mostDangerousTarget,
                         globalThis.__lastDepthMap,
                         yoloBounds,
@@ -904,22 +926,19 @@ export const useVision = (
                         spatialConfig,
                         debugConfig.logging,
                       );
-                      scheduleOnRN(
-                        updateAlert,
-                        targetName,
-                        displayAlertName,
-                        rawDepth,
-                        motionState,
-                      );
-                    } else {
-                      scheduleOnRN(
-                        updateAlert,
-                        targetName,
-                        displayAlertName,
-                        null,
-                        motionState,
-                      );
+                      if (rawDepth > 0) {
+                        globalThis.__lastAnchorDepth = rawDepth;
+                        globalThis.__lastAnchorArea = currentArea;
+                      }
                     }
+
+                    scheduleOnRN(
+                      updateAlert,
+                      targetName,
+                      displayAlertName,
+                      rawDepth,
+                      motionState,
+                    );
                   }
                 } else {
                   const timeSinceLastSeen =
@@ -933,6 +952,8 @@ export const useVision = (
                     globalThis.__lastThreatArea = 0;
                     globalThis.__lastThreatCx = 0;
                     globalThis.__lastThreatCy = 0;
+                    globalThis.__lastAnchorDepth = 0;
+                    globalThis.__lastAnchorArea = 0;
                     scheduleOnRN(clearAlert);
                   }
                 }

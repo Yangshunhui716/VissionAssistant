@@ -123,18 +123,15 @@ export const useVision = (
   });
 
   const [fps, setFps] = useState(0);
-  const updateFps = newFps => {
-    setFps(prev => (prev === newFps ? prev : newFps));
-  };
-
   const [aiFps, setAiFps] = useState(0);
-  const updateAiFps = newAiFps => {
-    setAiFps(prev => (prev === newAiFps ? prev : newAiFps));
-  };
-
   const [latencyMetrics, setLatencyMetrics] = useState(null);
-  const updateLatencyMetrics = metrics => {
-    setLatencyMetrics(metrics);
+
+  const updatePerformanceTelemetry = (newFps, newAiFps, metrics) => {
+    setFps(prev => (prev === newFps ? prev : newFps));
+    setAiFps(prev => (prev === newAiFps ? prev : newAiFps));
+    if (metrics) {
+      setLatencyMetrics(metrics);
+    }
   };
 
   const [debugImage, setDebugImage] = useState(null);
@@ -313,6 +310,37 @@ export const useVision = (
             const isDebug = Boolean(debugConfig.enabled);
             const isProfiling = isDebug && Boolean(debugConfig.profiling);
 
+            const dispatchAlertIfChanged = (
+              baseName,
+              displayAlertName,
+              rawDepth,
+              motion,
+            ) => {
+              const depthText =
+                rawDepth !== null
+                  ? translateDepthToText(rawDepth, spatialConfig)
+                  : 'Đang ước tính';
+
+              const currentSignature = `${displayAlertName}|${depthText}|${motion}`;
+              const timeSinceLastDispatch =
+                now - (globalThis.__lastAlertDispatchTime || 0);
+
+              if (
+                currentSignature !== globalThis.__lastDispatchedAlertSignature ||
+                timeSinceLastDispatch >= visionConfig.ALERT_CLEAR_DELAY_MS
+              ) {
+                globalThis.__lastDispatchedAlertSignature = currentSignature;
+                globalThis.__lastAlertDispatchTime = now;
+                scheduleOnRN(
+                  updateAlert,
+                  baseName,
+                  displayAlertName,
+                  rawDepth,
+                  motion,
+                );
+              }
+            };
+
             globalThis.__frameCount = (globalThis.__frameCount || 0) + 1;
             globalThis.__lastFpsTime = globalThis.__lastFpsTime || Date.now();
             if (
@@ -320,11 +348,14 @@ export const useVision = (
               visionConfig.FPS_UPDATE_INTERVAL_MS
             ) {
               if (isDebug) {
-                scheduleOnRN(updateFps, globalThis.__frameCount);
-                scheduleOnRN(updateAiFps, globalThis.__aiFrameCount || 0);
-                if (isProfiling && globalThis.__lastYoloMetrics) {
-                  scheduleOnRN(updateLatencyMetrics, globalThis.__lastYoloMetrics);
-                }
+                scheduleOnRN(
+                  updatePerformanceTelemetry,
+                  globalThis.__frameCount,
+                  globalThis.__aiFrameCount || 0,
+                  isProfiling && globalThis.__lastYoloMetrics
+                    ? globalThis.__lastYoloMetrics
+                    : null,
+                );
               }
               globalThis.__frameCount = 0;
               globalThis.__aiFrameCount = 0;
@@ -341,6 +372,8 @@ export const useVision = (
               globalThis.__lastThreatCy = 0;
               globalThis.__lastAnchorDepth = 0;
               globalThis.__lastAnchorArea = 0;
+              globalThis.__lastDispatchedAlertSignature = '';
+              globalThis.__lastAlertDispatchTime = 0;
               scheduleOnRN(clearAlert);
               return;
             }
@@ -390,6 +423,8 @@ export const useVision = (
               globalThis.__lastThreatCy = 0;
               globalThis.__lastAnchorDepth = 0;
               globalThis.__lastAnchorArea = 0;
+              globalThis.__lastDispatchedAlertSignature = '';
+              globalThis.__lastAlertDispatchTime = 0;
               return;
             }
 
@@ -522,8 +557,7 @@ export const useVision = (
                     );
                   }
 
-                  scheduleOnRN(
-                    updateAlert,
+                  dispatchAlertIfChanged(
                     task.targetName,
                     task.displayAlertName,
                     rawDepth,
@@ -932,8 +966,7 @@ export const useVision = (
                       }
                     }
 
-                    scheduleOnRN(
-                      updateAlert,
+                    dispatchAlertIfChanged(
                       targetName,
                       displayAlertName,
                       rawDepth,
@@ -954,6 +987,8 @@ export const useVision = (
                     globalThis.__lastThreatCy = 0;
                     globalThis.__lastAnchorDepth = 0;
                     globalThis.__lastAnchorArea = 0;
+                    globalThis.__lastDispatchedAlertSignature = '';
+                    globalThis.__lastAlertDispatchTime = 0;
                     scheduleOnRN(clearAlert);
                   }
                 }

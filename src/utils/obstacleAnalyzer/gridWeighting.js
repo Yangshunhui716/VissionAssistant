@@ -36,6 +36,7 @@ export const gridWeighting = (
       dangerScore *= obstacleConfig.TARGET_RETENTION_BONUS;
     }
 
+    obj.gridWeight = weight;
     obj.dangerScore = dangerScore;
   });
 

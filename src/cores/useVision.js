@@ -34,6 +34,7 @@ import { analyzeSpatialObject } from '../utils/spatialProcessor/spatialAnalyzer'
 import { gridWeighting } from '../utils/obstacleAnalyzer/gridWeighting';
 import { updateTracks } from '../utils/obstacleAnalyzer/objectTracker';
 import { analyzeThreat } from '../utils/obstacleAnalyzer/threatAnalyzer';
+import { evaluateAdaptiveMidasTrigger } from '../utils/obstacleAnalyzer/adaptiveScheduler';
 import { analyzeFrameQuality } from '../utils/frameProcessor/frameQuality';
 import { FIXED_CONFIG, createBmpBase64 } from '../utils/config/defaultConfig';
 
@@ -333,6 +334,9 @@ export const useVision = (
               globalThis.__lastThreatTarget = '';
               globalThis.__lastMidasTarget = '';
               globalThis.__pendingMidasTask = null;
+              globalThis.__lastThreatArea = 0;
+              globalThis.__lastThreatCx = 0;
+              globalThis.__lastThreatCy = 0;
               scheduleOnRN(clearAlert);
               return;
             }
@@ -377,6 +381,9 @@ export const useVision = (
               globalThis.__lastThreatTarget = '';
               globalThis.__lastMidasTarget = '';
               globalThis.__pendingMidasTask = null;
+              globalThis.__lastThreatArea = 0;
+              globalThis.__lastThreatCx = 0;
+              globalThis.__lastThreatCy = 0;
               return;
             }
 
@@ -841,19 +848,31 @@ export const useVision = (
                     spatialConfig,
                   );
 
-                  const currentArea =
-                    mostDangerousTarget.width * mostDangerousTarget.height;
+                  const {
+                    shouldTriggerMidas,
+                    currentArea,
+                    currentCx,
+                    currentCy,
+                  } = evaluateAdaptiveMidasTrigger(
+                    mostDangerousTarget,
+                    targetName,
+                    globalThis.__lastMidasTarget,
+                    {
+                      lastArea: globalThis.__lastThreatArea,
+                      lastCx: globalThis.__lastThreatCx,
+                      lastCy: globalThis.__lastThreatCy,
+                      lastTime: globalThis.__lastMidasTime,
+                    },
+                    now,
+                    visionConfig,
+                    yoloBounds,
+                  );
 
-                  const timeSinceLastMidas =
-                    now - (globalThis.__lastMidasTime || 0);
-                  const isNewTarget =
-                    targetName !== globalThis.__lastMidasTarget;
+                  if (shouldTriggerMidas) {
+                    globalThis.__lastThreatArea = currentArea;
+                    globalThis.__lastThreatCx = currentCx;
+                    globalThis.__lastThreatCy = currentCy;
 
-                  if (
-                    timeSinceLastMidas > visionConfig.MIDAS_DELAY_MS ||
-                    (isNewTarget &&
-                      timeSinceLastMidas > visionConfig.MIDAS_TARGET_DELAY_MS)
-                  ) {
                     globalThis.__pendingMidasTask = {
                       type: 'THREAT',
                       obj: mostDangerousTarget,
@@ -871,8 +890,10 @@ export const useVision = (
                       },
                     };
                   } else {
+                    // MiDaS ngủ đông (Sleeping) - Tái sử dụng bản đồ độ sâu đã có hoặc thông báo không gián đoạn
                     if (
-                      timeSinceLastMidas > visionConfig.MIDAS_TARGET_DELAY_MS
+                      timeSinceLastMidas > visionConfig.MIDAS_TARGET_DELAY_MS &&
+                      globalThis.__lastDepthMap
                     ) {
                       const rawDepth = getDepthFromMidas(
                         mostDangerousTarget,
@@ -908,6 +929,9 @@ export const useVision = (
                     timeSinceLastSeen > visionConfig.ALERT_CLEAR_DELAY_MS
                   ) {
                     globalThis.__lastThreatTarget = '';
+                    globalThis.__lastThreatArea = 0;
+                    globalThis.__lastThreatCx = 0;
+                    globalThis.__lastThreatCy = 0;
                     scheduleOnRN(clearAlert);
                   }
                 }

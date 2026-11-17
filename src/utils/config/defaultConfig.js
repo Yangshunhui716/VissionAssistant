@@ -14,6 +14,10 @@ export const DEFAULT_CONFIG = {
     MIDAS_DELAY_MS: 2000,
     MIDAS_TARGET_DELAY_MS: 500,
     MIDAS_SEARCH_INTERVAL_MS: 1000,
+    MIDAS_AREA_GROWTH_THRESHOLD: 0.2, // Tầng 2: Biến thiên diện tích BBox >= 20%
+    MIDAS_CENTER_SHIFT_THRESHOLD: 0.15, // Tầng 2: Dịch chuyển tâm chuẩn hóa >= 15%
+    MIDAS_CEILING_TIMEOUT_MS: 4000, // Tầng 3: Nhịp bảo vệ trần tối đa 4000ms
+    MIDAS_MIN_GRID_WEIGHT: 1.5, // Tầng 1: Trọng số lưới tối thiểu để coi là vùng nguy hiểm
     BLOCKED_WARN_MS: 4000,
     THREAT_COOLDOWN_MS: 4000,
     THREAT_RESET_MS: 2000,

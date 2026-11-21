@@ -72,10 +72,21 @@ export const evaluateAdaptiveMidasTrigger = (
     hasSignificantAreaChange || hasSignificantShift || isApproaching;
 
   // Tầng 3: Nhịp bảo vệ trần (Ceiling Timeout) hoặc đối tượng mới
-  const isCeilingTimeout =
-    timeSinceLastMidas > (visionConfig.MIDAS_CEILING_TIMEOUT_MS || 4000);
+  const isStatic =
+    mostDangerousTarget.motion === 'Tĩnh' ||
+    mostDangerousTarget.motion === 'Trạng thái tĩnh';
+  const ceilingTimeoutMs = isStatic
+    ? 8000
+    : (visionConfig.MIDAS_CEILING_TIMEOUT_MS || 4000);
+  const isCeilingTimeout = timeSinceLastMidas > ceilingTimeoutMs;
+
+  // Chống rung giật (Debounce): Chỉ kích hoạt MiDaS cho đối tượng mới nếu đối tượng đó đã ổn định >= 2 frames
+  const isTargetConfirmed =
+    mostDangerousTarget.hits === undefined || mostDangerousTarget.hits >= 2;
   const isTargetNewOrExpired =
-    isNewTarget && timeSinceLastMidas > visionConfig.MIDAS_TARGET_DELAY_MS;
+    isNewTarget &&
+    isTargetConfirmed &&
+    timeSinceLastMidas > visionConfig.MIDAS_TARGET_DELAY_MS;
 
   // Quyết định kích hoạt MiDaS thích ứng (Adaptive Triggering)
   const shouldTriggerMidas =

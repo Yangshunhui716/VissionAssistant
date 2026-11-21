@@ -341,6 +341,23 @@ export const useVision = (
               }
             };
 
+            const resetThreatTrackingState = (shouldClearAlert = true) => {
+              globalThis.__lastMidasTime = 0;
+              globalThis.__lastThreatTarget = '';
+              globalThis.__lastMidasTarget = '';
+              globalThis.__pendingMidasTask = null;
+              globalThis.__lastThreatArea = 0;
+              globalThis.__lastThreatCx = 0;
+              globalThis.__lastThreatCy = 0;
+              globalThis.__lastAnchorDepth = 0;
+              globalThis.__lastAnchorArea = 0;
+              globalThis.__lastDispatchedAlertSignature = '';
+              globalThis.__lastAlertDispatchTime = 0;
+              if (shouldClearAlert) {
+                scheduleOnRN(clearAlert);
+              }
+            };
+
             globalThis.__frameCount = (globalThis.__frameCount || 0) + 1;
             globalThis.__lastFpsTime = globalThis.__lastFpsTime || Date.now();
             if (
@@ -363,18 +380,7 @@ export const useVision = (
             }
 
             if (isShaking.value) {
-              globalThis.__lastMidasTime = 0;
-              globalThis.__lastThreatTarget = '';
-              globalThis.__lastMidasTarget = '';
-              globalThis.__pendingMidasTask = null;
-              globalThis.__lastThreatArea = 0;
-              globalThis.__lastThreatCx = 0;
-              globalThis.__lastThreatCy = 0;
-              globalThis.__lastAnchorDepth = 0;
-              globalThis.__lastAnchorArea = 0;
-              globalThis.__lastDispatchedAlertSignature = '';
-              globalThis.__lastAlertDispatchTime = 0;
-              scheduleOnRN(clearAlert);
+              resetThreatTrackingState(true);
               return;
             }
 
@@ -414,17 +420,7 @@ export const useVision = (
                 globalThis.__lastBlockedWarnTime = now;
                 scheduleOnRN(onFrameQuality, frameQuality.reason);
               }
-              globalThis.__lastMidasTime = 0;
-              globalThis.__lastThreatTarget = '';
-              globalThis.__lastMidasTarget = '';
-              globalThis.__pendingMidasTask = null;
-              globalThis.__lastThreatArea = 0;
-              globalThis.__lastThreatCx = 0;
-              globalThis.__lastThreatCy = 0;
-              globalThis.__lastAnchorDepth = 0;
-              globalThis.__lastAnchorArea = 0;
-              globalThis.__lastDispatchedAlertSignature = '';
-              globalThis.__lastAlertDispatchTime = 0;
+              resetThreatTrackingState(false);
               return;
             }
 
@@ -983,15 +979,7 @@ export const useVision = (
                     globalThis.__lastThreatTarget !== '' &&
                     timeSinceLastSeen > visionConfig.ALERT_CLEAR_DELAY_MS
                   ) {
-                    globalThis.__lastThreatTarget = '';
-                    globalThis.__lastThreatArea = 0;
-                    globalThis.__lastThreatCx = 0;
-                    globalThis.__lastThreatCy = 0;
-                    globalThis.__lastAnchorDepth = 0;
-                    globalThis.__lastAnchorArea = 0;
-                    globalThis.__lastDispatchedAlertSignature = '';
-                    globalThis.__lastAlertDispatchTime = 0;
-                    scheduleOnRN(clearAlert);
+                    resetThreatTrackingState(true);
                   }
                 }
 

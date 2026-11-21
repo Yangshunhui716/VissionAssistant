@@ -11,7 +11,6 @@ export const DEFAULT_CONFIG = {
 
   vision: {
     PROCESS_DELAY_MS: 250,
-    MIDAS_DELAY_MS: 2000,
     MIDAS_TARGET_DELAY_MS: 500,
     MIDAS_SEARCH_INTERVAL_MS: 1000,
     MIDAS_AREA_GROWTH_THRESHOLD: 0.2, // Tầng 2: Biến thiên diện tích BBox >= 20%

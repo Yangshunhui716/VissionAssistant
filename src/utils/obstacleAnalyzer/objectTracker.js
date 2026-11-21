@@ -1,4 +1,8 @@
-import { calculateIoU, getBoxCenters } from '../spatialProcessor/geometryUtils';
+import {
+  calculateIoU,
+  calculateDIoU,
+  getBoxCenters,
+} from '../spatialProcessor/geometryUtils';
 
 /**
  * Dự báo vị trí hộp bao ở khung hình hiện tại theo mô hình vận tốc không đổi (Constant Velocity Model - CVM)
@@ -111,15 +115,20 @@ export const updateTracks = (
     predictedBoxes[t] = predictTrackPosition(tracks[t], now);
   }
 
-  // Bước 2: Ghép cặp đối sánh IoU giữa Hộp Bao Dự Báo và Detections mới
+  // Bước 2: Ghép cặp đối sánh Distance-IoU (DIoU - AAAI 2020) giữa Hộp Bao Dự Báo và Detections mới
+  const diouThreshold =
+    obstacleConfig.DIOU_MATCH !== undefined
+      ? obstacleConfig.DIOU_MATCH
+      : -0.1;
+
   const pairs = [];
   for (let t = 0; t < tracks.length; t++) {
     for (let d = 0; d < detections.length; d++) {
       if (tracks[t].labelIdx !== detections[d].labelIdx) {
         continue;
       }
-      const s = calculateIoU(predictedBoxes[t], detections[d]);
-      if (s >= obstacleConfig.IOU_MATCH) {
+      const s = calculateDIoU(predictedBoxes[t], detections[d]);
+      if (s >= diouThreshold) {
         pairs.push({ t, d, s });
       }
     }

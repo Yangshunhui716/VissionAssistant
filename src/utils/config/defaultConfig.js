@@ -55,6 +55,7 @@ export const DEFAULT_CONFIG = {
 
   obstacle: {
     IOU_MATCH: 0.2,
+    DIOU_MATCH: -0.1, // Ngưỡng ghép cặp khoảng cách tâm chuẩn hóa DIoU (AAAI 2020)
     CONFIRM_HITS: 2,
     MAX_MISSES: 3,
     HISTORY_LEN: 5,

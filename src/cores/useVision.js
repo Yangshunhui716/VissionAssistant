@@ -936,6 +936,8 @@ export const useVision = (
                     };
                   } else {
                     // MiDaS ngủ đông (Sleeping) - Nội suy cự ly quang học từ BBox expansion hoặc tái sử dụng depth map
+                    const timeSinceLastMidas =
+                      now - (globalThis.__lastMidasTime || 0);
                     let rawDepth = null;
                     if (
                       globalThis.__lastAnchorDepth > 0 &&

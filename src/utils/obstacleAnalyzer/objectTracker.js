@@ -1,5 +1,50 @@
 import { calculateIoU, getBoxCenters } from '../spatialProcessor/geometryUtils';
 
+/**
+ * Dự báo vị trí hộp bao ở khung hình hiện tại theo mô hình vận tốc không đổi (Constant Velocity Model - CVM)
+ * Kế thừa nguyên lý từ SORT (Bewley et al., IEEE ICIP 2016).
+ *
+ * @param {object} tr - Đối tượng track hiện tại
+ * @param {number} now - Dấu thời gian hiện tại (ms)
+ * @returns {object} - Hộp bao dự báo (predicted bounding box)
+ */
+export const predictTrackPosition = (tr, now) => {
+  'worklet';
+
+  const dt = tr.lastTimestamp ? Math.max(0, now - tr.lastTimestamp) : 0;
+
+  // Dự báo vị trí nếu có vận tốc hợp lệ và khoảng thời gian khả dĩ (dưới 1500ms)
+  if (dt > 0 && dt <= 1500 && (tr.vx !== undefined || tr.vy !== undefined)) {
+    const vx = tr.vx || 0;
+    const vy = tr.vy || 0;
+
+    const currCx = tr.cx ?? (tr.x + tr.width / 2);
+    const currCy = tr.cy ?? (tr.y + tr.height / 2);
+
+    const predCx = currCx + vx * dt;
+    const predCy = currCy + vy * dt;
+
+    return {
+      x: predCx - tr.width / 2,
+      y: predCy - tr.height / 2,
+      width: tr.width,
+      height: tr.height,
+      cx: predCx,
+      cy: predCy,
+    };
+  }
+
+  // Fallback về vị trí hiện tại nếu chưa có dữ liệu vận tốc
+  return {
+    x: tr.x,
+    y: tr.y,
+    width: tr.width,
+    height: tr.height,
+    cx: tr.cx ?? (tr.x + tr.width / 2),
+    cy: tr.cy ?? (tr.y + tr.height / 2),
+  };
+};
+
 const pushHistory = (tr, historyLen) => {
   'worklet';
 
@@ -59,14 +104,21 @@ export const updateTracks = (
 
   const tracks = globalThis.__tracks;
   const frameArea = yoloBounds.newW * yoloBounds.newH;
-  const pairs = [];
 
+  // Bước 1: Dự báo vị trí cho toàn bộ tracks hiện có theo mô hình CVM (SORT Prediction Step)
+  const predictedBoxes = new Array(tracks.length);
+  for (let t = 0; t < tracks.length; t++) {
+    predictedBoxes[t] = predictTrackPosition(tracks[t], now);
+  }
+
+  // Bước 2: Ghép cặp đối sánh IoU giữa Hộp Bao Dự Báo và Detections mới
+  const pairs = [];
   for (let t = 0; t < tracks.length; t++) {
     for (let d = 0; d < detections.length; d++) {
       if (tracks[t].labelIdx !== detections[d].labelIdx) {
         continue;
       }
-      const s = calculateIoU(tracks[t], detections[d]);
+      const s = calculateIoU(predictedBoxes[t], detections[d]);
       if (s >= obstacleConfig.IOU_MATCH) {
         pairs.push({ t, d, s });
       }
@@ -77,6 +129,7 @@ export const updateTracks = (
   const usedTrack = new Array(tracks.length).fill(false);
   const usedDet = new Array(detections.length).fill(false);
 
+  // Bước 3: Cập nhật vị trí & Làm mượt vector vận tốc EMA cho các cặp ghép thành công
   for (let i = 0; i < pairs.length; i++) {
     const p = pairs[i];
 
@@ -90,17 +143,41 @@ export const updateTracks = (
     const tr = tracks[p.t];
     const det = detections[p.d];
 
+    const prevCx = tr.cx ?? (tr.x + tr.width / 2);
+    const prevCy = tr.cy ?? (tr.y + tr.height / 2);
+    const currCx = det.x + det.width / 2;
+    const currCy = det.y + det.height / 2;
+    const dt = tr.lastTimestamp ? Math.max(1, now - tr.lastTimestamp) : 0;
+
+    // Tính vận tốc tuyến tính tức thời (pixel/ms) và lọc mượt EMA (alpha = 0.7)
+    if (dt > 0 && dt <= 1500) {
+      const instVx = (currCx - prevCx) / dt;
+      const instVy = (currCy - prevCy) / dt;
+      const alpha = 0.7; // Trọng số ưu tiên vận tốc mới nhất
+      tr.vx =
+        tr.vx !== undefined ? alpha * instVx + (1 - alpha) * tr.vx : instVx;
+      tr.vy =
+        tr.vy !== undefined ? alpha * instVy + (1 - alpha) * tr.vy : instVy;
+    } else {
+      tr.vx = 0;
+      tr.vy = 0;
+    }
+
     tr.x = det.x;
     tr.y = det.y;
     tr.width = det.width;
     tr.height = det.height;
+    tr.cx = currCx;
+    tr.cy = currCy;
     tr.score = det.score;
     tr.hits += 1;
     tr.misses = 0;
+    tr.lastTimestamp = now;
 
     pushHistory(tr, obstacleConfig.HISTORY_LEN);
   }
 
+  // Bước 4: Tăng số frame bỏ lỡ cho track không ghép cặp được
   for (let t = tracks.length - 1; t >= 0; t--) {
     if (usedTrack[t]) {
       continue;
@@ -111,11 +188,15 @@ export const updateTracks = (
     }
   }
 
+  // Bước 5: Khởi tạo track mới cho các phát hiện chưa được ghép cặp
   for (let d = 0; d < detections.length; d++) {
     if (usedDet[d]) {
       continue;
     }
     const det = detections[d];
+    const currCx = det.x + det.width / 2;
+    const currCy = det.y + det.height / 2;
+
     const tr = {
       id: ++globalThis.__trackSeq,
       labelIdx: det.labelIdx,
@@ -123,6 +204,11 @@ export const updateTracks = (
       y: det.y,
       width: det.width,
       height: det.height,
+      cx: currCx,
+      cy: currCy,
+      vx: 0,
+      vy: 0,
+      lastTimestamp: now,
       score: det.score,
       hits: 1,
       misses: 0,

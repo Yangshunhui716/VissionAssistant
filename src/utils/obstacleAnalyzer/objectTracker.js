@@ -72,8 +72,17 @@ const computeMotion = (tr, yoloBounds, obstacleConfig) => {
   const first = tr.history[0];
   const last = tr.history[tr.history.length - 1];
 
-  if (first.area > 0 && last.area / first.area > obstacleConfig.GROWTH_RATIO) {
-    return 'Đang tiến lại gần !';
+  const growthRatio = obstacleConfig.GROWTH_RATIO || 1.25;
+  const shrinkRatio = obstacleConfig.SHRINK_RATIO || 0.8;
+
+  if (first.area > 0) {
+    const areaRatio = last.area / first.area;
+    if (areaRatio > growthRatio) {
+      return 'Đang tiến lại gần !';
+    }
+    if (areaRatio < shrinkRatio) {
+      return 'Đang lùi xa';
+    }
   }
 
   const moveX = last.cx - first.cx;
@@ -160,8 +169,11 @@ export const updateTracks = (
 
     // Tính vận tốc tuyến tính tức thời (pixel/ms) và lọc mượt EMA (alpha = 0.7)
     if (dt > 0 && dt <= 1500) {
-      const instVx = (currCx - prevCx) / dt;
-      const instVy = (currCy - prevCy) / dt;
+      const dX = currCx - prevCx;
+      const dY = currCy - prevCy;
+      // Motion Deadband: Lọc nhiễu dịch chuyển nhỏ dưới 1.5 pixel do rung tay camera
+      const instVx = Math.abs(dX) > 1.5 ? dX / dt : 0;
+      const instVy = Math.abs(dY) > 1.5 ? dY / dt : 0;
       const alpha = 0.7; // Trọng số ưu tiên vận tốc mới nhất
       tr.vx =
         tr.vx !== undefined ? alpha * instVx + (1 - alpha) * tr.vx : instVx;
@@ -186,7 +198,7 @@ export const updateTracks = (
     pushHistory(tr, obstacleConfig.HISTORY_LEN);
   }
 
-  // Bước 4: Tăng số frame bỏ lỡ cho track không ghép cặp được
+  // Bước 4: Tăng số frame bỏ lỡ cho track không ghép cặp được & Track Coasting
   for (let t = tracks.length - 1; t >= 0; t--) {
     if (usedTrack[t]) {
       continue;
@@ -194,6 +206,19 @@ export const updateTracks = (
     tracks[t].misses += 1;
     if (tracks[t].misses > obstacleConfig.MAX_MISSES) {
       tracks.splice(t, 1);
+      continue;
+    }
+
+    // Cơ chế Track Coasting: Cập nhật vị trí dự báo CVM khi track đã xác nhận chỉ vừa trượt 1 frame
+    if (
+      tracks[t].misses === 1 &&
+      tracks[t].hits >= obstacleConfig.CONFIRM_HITS
+    ) {
+      const pred = predictedBoxes[t];
+      tracks[t].x = pred.x;
+      tracks[t].y = pred.y;
+      tracks[t].cx = pred.cx;
+      tracks[t].cy = pred.cy;
     }
   }
 
@@ -233,7 +258,10 @@ export const updateTracks = (
 
   for (let i = 0; i < tracks.length; i++) {
     const tr = tracks[i];
-    if (tr.misses > 0) {
+    // Cho phép track duy trì kết quả nếu vừa trượt 1 frame (coasting) và đã được xác nhận (hits >= CONFIRM_HITS)
+    const isCoasting =
+      tr.misses === 1 && tr.hits >= obstacleConfig.CONFIRM_HITS;
+    if (tr.misses > 0 && !isCoasting) {
       continue;
     }
 

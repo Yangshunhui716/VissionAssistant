@@ -61,7 +61,8 @@ export const DEFAULT_CONFIG = {
     HISTORY_LEN: 5,
     STALE_MS: 3000,
     EMERGENCY_AREA_RATIO: 0.2,
-    GROWTH_RATIO: 1.5,
+    GROWTH_RATIO: 1.25, // Tinh chỉnh Task 28: Ngưỡng tăng diện tích 25% trong 5 frames phát hiện sớm tiến lại gần
+    SHRINK_RATIO: 0.8, // Bổ sung Task 28: Nhận diện vật cản đang lùi xa an toàn
     CROSS_MOVE_RATIO: 0.1,
     MIN_MOTION_FRAMES: 2,
 
@@ -69,7 +70,7 @@ export const DEFAULT_CONFIG = {
     MAX_AREA_RATIO: 3.0,
     MAX_Y_DIFF_RATIO: 0.3,
 
-    TARGET_RETENTION_BONUS: 1.0,
+    TARGET_RETENTION_BONUS: 1.25, // Tinh chỉnh Task 28: Hysteresis 25% dập tắt nhảy nhãn TTS (flickering)
 
     GRID_WEIGHTS: [
       [0.5, 0.8, 0.5],

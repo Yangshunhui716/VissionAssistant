@@ -219,6 +219,7 @@ export const updateTracks = (
       tracks[t].y = pred.y;
       tracks[t].cx = pred.cx;
       tracks[t].cy = pred.cy;
+      tracks[t].lastTimestamp = now;
     }
   }
 

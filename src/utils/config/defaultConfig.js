@@ -71,6 +71,13 @@ export const DEFAULT_CONFIG = {
     TTC_WARNING_SECONDS: 3.0, // Ngưỡng cảnh báo sớm (<= 3.0s phát hiện vật cản tiến lại gần)
     DEPTH_CALIBRATION_K: 530, // Hằng số hiệu chuẩn cự ly mét MiDaS (Z ≈ K / rawDepth)
 
+    // Cấu hình Ma trận trọng số không gian động học (Dynamic Spatial Weighting - Task 32)
+    CROSS_INWARD_BONUS: 1.35, // Tăng 35% ưu tiên cho vật cản cắt ngang hướng vào tâm bước đi
+    CROSS_OUTWARD_PENALTY: 0.85, // Giảm 15% ưu tiên cho vật cản cắt ngang hướng ra ngoài
+    THREAT_CRITICAL_BONUS: 2.0, // Tăng gấp đôi ưu tiên cho vật cản có TTC nguy cấp (<= 1.5s)
+    THREAT_WARNING_BONUS: 1.4, // Tăng 40% ưu tiên cho vật cản có TTC cảnh báo (<= 3.0s)
+    RECEDING_PENALTY: 0.7, // Giảm 30% ưu tiên cho vật cản đang lùi xa an toàn
+
     MIN_AREA_RATIO: 0.33,
     MAX_AREA_RATIO: 3.0,
     MAX_Y_DIFF_RATIO: 0.3,

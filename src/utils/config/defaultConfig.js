@@ -138,9 +138,13 @@ export const DEFAULT_CONFIG = {
     HEARTBEAT_TICK_MS: 1000,
     HEARTBEAT_VIBE_DURATION: 40,
 
-    PRIORITY_IDLE: 99,
+    PRIORITY_EMERGENCY: 0, // Cảnh báo nguy cấp va chạm (TTC <= 1.5s) - Ngắt lời lập tức
+    PRIORITY_WARNING: 1, // Cảnh báo sớm vật cản tiếp cận
     PRIORITY_DEFAULT: 10,
+    PRIORITY_IDLE: 99,
 
+    HAPTIC_EMERGENCY: [0, 200, 100, 300], // Rung kép dồn dập báo động va chạm khẩn cấp
+    HAPTIC_WARNING: 250, // Rung cảnh báo đơn
     HAPTIC_WAKE_UP: 100,
     HAPTIC_SUCCESS: [0, 100, 100, 100],
     HAPTIC_ERROR: 500,

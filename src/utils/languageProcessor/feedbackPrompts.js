@@ -33,10 +33,20 @@ export const PROMPTS = {
       tts: 'Tạm thời tắt nhận diện vật cản',
       priority: 3,
     },
+    critical: message => ({
+      ui: `NGUY HIỂM: ${message}`,
+      tts: message, // Không thêm tiền tố, đanh thép phát thẳng nội dung nguy cấp
+      priority: 0, // Mức ưu tiên tuyệt đối, ngắt lời ngay lập tức
+    }),
+    warning: message => ({
+      ui: `CẢNH BÁO: ${message}`,
+      tts: `Cảnh báo! ${message}`,
+      priority: 1, // Ưu tiên cao, ngắt các câu thoại thông tin
+    }),
     threat: message => ({
       ui: null,
       tts: `Chú ý! ${message}`,
-      priority: 1,
+      priority: 2,
     }),
   },
 

@@ -68,6 +68,7 @@ export const useFeedbackController = () => {
         if (!promptObj.tts) return;
 
         if (
+          incomingPriority === feedbackConfig.PRIORITY_EMERGENCY ||
           incomingPriority === feedbackConfig.PRIORITY_INTERRUPT ||
           incomingPriority < currentPriorityRef.current
         ) {
@@ -78,11 +79,27 @@ export const useFeedbackController = () => {
         lastActionTimeRef.current = Date.now();
       }
     },
-    [feedbackConfig.PRIORITY_DEFAULT, feedbackConfig.PRIORITY_INTERRUPT],
+    [
+      feedbackConfig.PRIORITY_DEFAULT,
+      feedbackConfig.PRIORITY_INTERRUPT,
+      feedbackConfig.PRIORITY_EMERGENCY,
+    ],
   );
 
   const haptics = useMemo(
     () => ({
+      emergency: () => {
+        Vibration.vibrate(
+          feedbackConfig.HAPTIC_EMERGENCY || [0, 200, 100, 300],
+        );
+        lastActionTimeRef.current = Date.now();
+      },
+
+      warning: () => {
+        Vibration.vibrate(feedbackConfig.HAPTIC_WARNING || 250);
+        lastActionTimeRef.current = Date.now();
+      },
+
       wakeUp: () => {
         Vibration.vibrate(feedbackConfig.HAPTIC_WAKE_UP);
         lastActionTimeRef.current = Date.now();
@@ -99,6 +116,8 @@ export const useFeedbackController = () => {
       },
     }),
     [
+      feedbackConfig.HAPTIC_EMERGENCY,
+      feedbackConfig.HAPTIC_WARNING,
       feedbackConfig.HAPTIC_WAKE_UP,
       feedbackConfig.HAPTIC_SUCCESS,
       feedbackConfig.HAPTIC_ERROR,

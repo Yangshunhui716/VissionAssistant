@@ -237,7 +237,7 @@ export const useVision = (
         // Cảnh báo khẩn cấp bỏ qua cooldown thông thường khi có nguy cơ va chạm tức thời (TTC <= 1.5s)
         if (now - lastSpokenTime > 1000 || isDifferentTarget || isCloser) {
           shouldAnnounce = true;
-          speechText = `Nguy hiểm! ${displayAlertName}, cách ${depthText}, ${motion}`;
+          speechText = `Nguy hiểm! ${displayAlertName}, cách ${depthText}`;
         }
       } else if (isDifferentTarget) {
         shouldAnnounce = true;
@@ -263,7 +263,7 @@ export const useVision = (
       lastSpokenTime = now;
       lastMotion = motion;
 
-      onThreatDetected(speechText);
+      onThreatDetected(speechText, threatLevel);
     } else {
       if (Date.now() - lastSpokenTime > visionConfig.THREAT_RESET_MS) {
         lastSpokenBaseName = '';

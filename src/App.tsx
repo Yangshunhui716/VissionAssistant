@@ -131,9 +131,20 @@ const AppContent: React.FC = () => {
   );
 
   const handleThreatDetected = useCallback(
-    (threatMessage: string) => {
-      haptics.error();
-      playFeedback(PROMPTS.obstacle.threat(threatMessage));
+    (
+      threatMessage: string,
+      threatLevel: 'CRITICAL' | 'WARNING' | 'SAFE' = 'SAFE',
+    ) => {
+      if (threatLevel === 'CRITICAL') {
+        haptics.emergency();
+        playFeedback(PROMPTS.obstacle.critical(threatMessage));
+      } else if (threatLevel === 'WARNING') {
+        haptics.warning();
+        playFeedback(PROMPTS.obstacle.warning(threatMessage));
+      } else {
+        haptics.error();
+        playFeedback(PROMPTS.obstacle.threat(threatMessage));
+      }
     },
     [playFeedback, haptics],
   );

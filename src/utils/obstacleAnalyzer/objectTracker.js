@@ -3,6 +3,7 @@ import {
   calculateDIoU,
   getBoxCenters,
 } from '../spatialProcessor/geometryUtils';
+import { calculateTTC } from './collisionEstimator';
 
 /**
  * Dự báo vị trí hộp bao ở khung hình hiện tại theo mô hình vận tốc không đổi (Constant Velocity Model - CVM)
@@ -49,12 +50,13 @@ export const predictTrackPosition = (tr, now) => {
   };
 };
 
-const pushHistory = (tr, historyLen) => {
+const pushHistory = (tr, historyLen, now) => {
   'worklet';
 
   tr.history.push({
     area: tr.width * tr.height,
     cx: getBoxCenters(tr).cx,
+    timestamp: now,
   });
 
   if (tr.history.length > historyLen) {
@@ -195,7 +197,7 @@ export const updateTracks = (
     tr.misses = 0;
     tr.lastTimestamp = now;
 
-    pushHistory(tr, obstacleConfig.HISTORY_LEN);
+    pushHistory(tr, obstacleConfig.HISTORY_LEN, now);
   }
 
   // Bước 4: Tăng số frame bỏ lỡ cho track không ghép cặp được & Track Coasting
@@ -220,6 +222,7 @@ export const updateTracks = (
       tracks[t].cx = pred.cx;
       tracks[t].cy = pred.cy;
       tracks[t].lastTimestamp = now;
+      pushHistory(tracks[t], obstacleConfig.HISTORY_LEN, now);
     }
   }
 
@@ -250,8 +253,10 @@ export const updateTracks = (
       history: [],
       motion: 'Trạng thái tĩnh',
       isEmergency: false,
+      ttc: null,
+      threatLevel: 'SAFE',
     };
-    pushHistory(tr, obstacleConfig.HISTORY_LEN);
+    pushHistory(tr, obstacleConfig.HISTORY_LEN, now);
     tracks.push(tr);
   }
 
@@ -266,8 +271,14 @@ export const updateTracks = (
       continue;
     }
 
+    const ttcRes = calculateTTC(tr, null, obstacleConfig);
+    tr.ttc = ttcRes.ttc;
+    tr.threatLevel = ttcRes.threatLevel;
+
     const areaRatio = (tr.width * tr.height) / frameArea;
-    const isEmergency = areaRatio > obstacleConfig.EMERGENCY_AREA_RATIO;
+    const isEmergency =
+      areaRatio > obstacleConfig.EMERGENCY_AREA_RATIO ||
+      tr.threatLevel === 'CRITICAL';
 
     if (whitelist.indexOf(tr.labelIdx) === -1) {
       continue;

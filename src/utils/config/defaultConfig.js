@@ -66,6 +66,11 @@ export const DEFAULT_CONFIG = {
     CROSS_MOVE_RATIO: 0.1,
     MIN_MOTION_FRAMES: 2,
 
+    // Cấu hình Time-to-Collision (TTC Heuristic - Task 31)
+    TTC_CRITICAL_SECONDS: 1.5, // Ngưỡng nguy cấp (<= 1.5s cảnh báo va chạm tức thời)
+    TTC_WARNING_SECONDS: 3.0, // Ngưỡng cảnh báo sớm (<= 3.0s phát hiện vật cản tiến lại gần)
+    DEPTH_CALIBRATION_K: 530, // Hằng số hiệu chuẩn cự ly mét MiDaS (Z ≈ K / rawDepth)
+
     MIN_AREA_RATIO: 0.33,
     MAX_AREA_RATIO: 3.0,
     MAX_Y_DIFF_RATIO: 0.3,

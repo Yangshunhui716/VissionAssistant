@@ -35,6 +35,7 @@ import { analyzeSpatialObject } from '../utils/spatialProcessor/spatialAnalyzer'
 import { gridWeighting } from '../utils/obstacleAnalyzer/gridWeighting';
 import { updateTracks } from '../utils/obstacleAnalyzer/objectTracker';
 import { analyzeThreat } from '../utils/obstacleAnalyzer/threatAnalyzer';
+import { calculateTTC } from '../utils/obstacleAnalyzer/collisionEstimator';
 import { evaluateAdaptiveMidasTrigger } from '../utils/obstacleAnalyzer/adaptiveScheduler';
 import { recordBenchmarkTelemetry } from '../utils/benchmark/benchmarkRecorder';
 import { analyzeFrameQuality } from '../utils/frameProcessor/frameQuality';
@@ -120,6 +121,8 @@ export const useVision = (
     name: '',
     depth: '',
     motion: '',
+    threatLevel: 'SAFE',
+    ttc: null,
   });
 
   const [fps, setFps] = useState(0);
@@ -161,6 +164,8 @@ export const useVision = (
         name: '',
         depth: '',
         motion: '',
+        threatLevel: 'SAFE',
+        ttc: null,
       };
     });
   };
@@ -181,7 +186,14 @@ export const useVision = (
     return 0;
   };
 
-  const updateAlert = (baseName, displayAlertName, realDepth, motion) => {
+  const updateAlert = (
+    baseName,
+    displayAlertName,
+    realDepth,
+    motion,
+    threatLevel = 'SAFE',
+    ttc = null,
+  ) => {
     const depthText =
       realDepth !== null
         ? translateDepthToText(realDepth, spatialConfig)
@@ -191,7 +203,9 @@ export const useVision = (
       if (
         prev.name === displayAlertName &&
         prev.depth === depthText &&
-        prev.motion === motion
+        prev.motion === motion &&
+        prev.threatLevel === threatLevel &&
+        prev.ttc === ttc
       ) {
         return prev;
       }
@@ -200,6 +214,8 @@ export const useVision = (
         name: displayAlertName,
         depth: depthText,
         motion,
+        threatLevel,
+        ttc,
       };
     });
 
@@ -212,11 +228,18 @@ export const useVision = (
       const isMotionChanged = motion !== lastMotion;
       const isMoving = motion !== 'Trạng thái tĩnh';
       const isTimeUp = now - lastSpokenTime > visionConfig.THREAT_COOLDOWN_MS;
+      const isCritical = threatLevel === 'CRITICAL';
 
       let shouldAnnounce = false;
       let speechText = '';
 
-      if (isDifferentTarget) {
+      if (isCritical) {
+        // Cảnh báo khẩn cấp bỏ qua cooldown thông thường khi có nguy cơ va chạm tức thời (TTC <= 1.5s)
+        if (now - lastSpokenTime > 1000 || isDifferentTarget || isCloser) {
+          shouldAnnounce = true;
+          speechText = `Nguy hiểm! ${displayAlertName}, cách ${depthText}, ${motion}`;
+        }
+      } else if (isDifferentTarget) {
         shouldAnnounce = true;
         speechText = `${displayAlertName}, cách ${depthText}`;
       } else if (
@@ -243,7 +266,7 @@ export const useVision = (
       onThreatDetected(speechText);
     } else {
       if (Date.now() - lastSpokenTime > visionConfig.THREAT_RESET_MS) {
-        lastSpokenBaseName
+        lastSpokenBaseName = '';
         lastSpokenDepthLevel = 0;
         lastMotion = '';
       }
@@ -315,19 +338,22 @@ export const useVision = (
               displayAlertName,
               rawDepth,
               motion,
+              threatLevel = 'SAFE',
+              ttc = null,
             ) => {
               const depthText =
                 rawDepth !== null
                   ? translateDepthToText(rawDepth, spatialConfig)
                   : 'Đang ước tính';
 
-              const currentSignature = `${displayAlertName}|${depthText}|${motion}`;
+              const currentSignature = `${displayAlertName}|${depthText}|${motion}|${threatLevel}`;
               const timeSinceLastDispatch =
                 now - (globalThis.__lastAlertDispatchTime || 0);
 
               if (
                 currentSignature !== globalThis.__lastDispatchedAlertSignature ||
-                timeSinceLastDispatch >= visionConfig.ALERT_CLEAR_DELAY_MS
+                timeSinceLastDispatch >= visionConfig.ALERT_CLEAR_DELAY_MS ||
+                threatLevel === 'CRITICAL'
               ) {
                 globalThis.__lastDispatchedAlertSignature = currentSignature;
                 globalThis.__lastAlertDispatchTime = now;
@@ -337,6 +363,8 @@ export const useVision = (
                   displayAlertName,
                   rawDepth,
                   motion,
+                  threatLevel,
+                  ttc,
                 );
               }
             };
@@ -553,11 +581,19 @@ export const useVision = (
                     );
                   }
 
+                  const ttcRes = calculateTTC(
+                    task.obj,
+                    rawDepth,
+                    obstacleConfig,
+                  );
+
                   dispatchAlertIfChanged(
                     task.targetName,
                     task.displayAlertName,
                     rawDepth,
                     task.motionState,
+                    ttcRes.threatLevel,
+                    ttcRes.ttc,
                   );
                 } else if (task.type === 'SEARCH') {
                   const spatialMessage = analyzeSpatialObject(
@@ -964,11 +1000,19 @@ export const useVision = (
                       }
                     }
 
+                    const ttcRes = calculateTTC(
+                      mostDangerousTarget,
+                      rawDepth,
+                      obstacleConfig,
+                    );
+
                     dispatchAlertIfChanged(
                       targetName,
                       displayAlertName,
                       rawDepth,
                       motionState,
+                      ttcRes.threatLevel,
+                      ttcRes.ttc,
                     );
                   }
                 } else {

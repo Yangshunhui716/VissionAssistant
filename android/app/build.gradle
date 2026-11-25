@@ -82,8 +82,8 @@ android {
         applicationId "com.vissionassistant"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 26
-        versionName "1.0.14"
+        versionCode 27
+        versionName "1.0.15"
     }
     signingConfigs {
         debug {

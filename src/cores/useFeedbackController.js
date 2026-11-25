@@ -124,9 +124,21 @@ export const useFeedbackController = () => {
     ],
   );
 
+  const stopFeedback = useCallback(
+    (resetPriority = true) => {
+      Tts.stop();
+      if (resetPriority) {
+        currentPriorityRef.current = feedbackConfig.PRIORITY_IDLE;
+      }
+      lastActionTimeRef.current = Date.now();
+    },
+    [feedbackConfig.PRIORITY_IDLE],
+  );
+
   return {
     uiTranscript,
     playFeedback,
+    stopFeedback,
     haptics,
   };
 };

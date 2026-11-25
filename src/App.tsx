@@ -64,7 +64,8 @@ const AppContent: React.FC = () => {
 
   const { config, isLoaded } = useRuntimeConfig();
 
-  const { uiTranscript, playFeedback, haptics } = useFeedbackController();
+  const { uiTranscript, playFeedback, stopFeedback, haptics } =
+    useFeedbackController();
 
   const { manualWakeUp, manualStop } = useVoiceCommand(
     hasMicPermission,
@@ -76,6 +77,7 @@ const AppContent: React.FC = () => {
     setIsScanningGeneral,
     setIsScanningCurrency,
     setIsScanningText,
+    stopFeedback,
   );
 
   const handleSearchComplete = useCallback(
@@ -371,6 +373,9 @@ const AppContent: React.FC = () => {
 
   useEffect(() => {
     if (activeFunction) {
+      if (stopFeedback) {
+        stopFeedback(true);
+      }
       if (isObstacleActive) {
         obstacleWasActiveRef.current = true;
         setIsObstacleActive(false);
@@ -395,7 +400,16 @@ const AppContent: React.FC = () => {
         playFeedback(PROMPTS.obstacle.on);
       }
     }
-  }, [activeFunction, isObstacleActive, playFeedback, isScanningCurrency, isScanningGeneral, isScanningText, targetToFind]);
+  }, [
+    activeFunction,
+    isObstacleActive,
+    playFeedback,
+    stopFeedback,
+    isScanningCurrency,
+    isScanningGeneral,
+    isScanningText,
+    targetToFind,
+  ]);
 
   if (!hasCameraPermission || !hasMicPermission) {
     return <StatusScreen message="Vui lòng cấp quyền Camera & Microphone." />;
@@ -476,6 +490,9 @@ const AppContent: React.FC = () => {
         onMicPress={() => {
           if (appState === 'LISTENING') {
             manualStop();
+            if (stopFeedback) {
+              stopFeedback(true);
+            }
           } else {
             manualWakeUp();
           }

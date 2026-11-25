@@ -19,6 +19,7 @@ export const useVoiceCommand = (
   setIsScanningGeneral,
   setIsScanningCurrency,
   setIsScanningText,
+  stopFeedback,
 ) => {
   const { config } = useRuntimeConfig();
   const voiceConfig = config.voice;
@@ -94,6 +95,9 @@ export const useVoiceCommand = (
     isSwitching.current = true;
 
     try {
+      if (stopFeedback) {
+        stopFeedback(true);
+      }
       haptics.wakeUp();
 
       changeState('WAKING_UP', PROMPTS.system.wakingUp);
@@ -148,6 +152,10 @@ export const useVoiceCommand = (
         intentConfigRef.current,
         debugConfigRef.current.logging,
       );
+
+      if (stopFeedback) {
+        stopFeedback(true);
+      }
 
       if (intent === 'OBSTACLE_ON') {
         setTargetToFind(null);
